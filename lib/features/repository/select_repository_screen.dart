@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SelectRepositoryScreen extends StatefulWidget {
   const SelectRepositoryScreen({Key? key}) : super(key: key);
@@ -8,39 +12,42 @@ class SelectRepositoryScreen extends StatefulWidget {
 }
 
 class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
-  // Dummy data simulating GitHub API response
-  final List<Map<String, String>> dummyRepos = [
-    {
-      'name': 'codeaudit-mobile-app',
-      'url': 'https://github.com/user/codeaudit-mobile-app',
-      'lang': 'Dart',
-      'visibility': 'Private',
-      'updated': '2 hours ago',
-    },
-    {
-      'name': 'backend-api-service',
-      'url': 'https://github.com/user/backend-api-service',
-      'lang': 'Python',
-      'visibility': 'Private',
-      'updated': '5 hours ago',
-    },
-    {
-      'name': 'portfolio-website',
-      'url': 'https://github.com/user/portfolio-website',
-      'lang': 'TypeScript',
-      'visibility': 'Public',
-      'updated': '1 day ago',
-    },
-    {
-      'name': 'flutter-ui-components',
-      'url': 'https://github.com/user/flutter-ui-components',
-      'lang': 'Dart',
-      'visibility': 'Public',
-      'updated': '3 days ago',
-    },
-  ];
-
+  late Future<List<dynamic>> _repositoriesFuture;
   int? _selectedIndex;
+  List<dynamic> _reposCache = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _repositoriesFuture = fetchUserRepositories();
+  }
+
+  // Fetch real public and private repositories using Supabase session token
+  Future<List<dynamic>> fetchUserRepositories() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    final accessToken = session?.providerToken;
+
+    if (accessToken == null) {
+      throw Exception('No GitHub provider token found. User might not be authenticated properly.');
+    }
+
+    final response = await http.get(
+      Uri.parse('https://api.github.com/user/repos?visibility=all&sort=updated'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      List<dynamic> repos = jsonDecode(response.body);
+      _reposCache = repos; // Cache for selection reference
+      return repos;
+    } else {
+      throw Exception('Failed to load repositories: ${response.body}');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +60,19 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.red),
+            tooltip: 'Force Logout',
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+              }
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -86,79 +106,107 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Repository List
+            // Repository List FutureBuilder
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                physics: const BouncingScrollPhysics(),
-                itemCount: dummyRepos.length,
-                itemBuilder: (context, index) {
-                  final repo = dummyRepos[index];
-                  final isSelected = _selectedIndex == index;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedIndex = index;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.only(bottom: 16.0),
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFECFDF5) : Colors.white,
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
-                          width: 1.5,
+              child: FutureBuilder<List<dynamic>>(
+                future: _repositoriesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF10B981)),
+                    );
+                  } else if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Text(
+                          'Error loading repositories:\n${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
                         ),
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Row(
-                        children: [
-                          // GitHub Icon
-                          Icon(
-                            Icons.folder_outlined,
-                            color: isSelected ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                            size: 28,
+                    );
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No repositories found.',
+                        style: TextStyle(color: Color(0xFF64748B)),
+                      ),
+                    );
+                  }
+
+                  final repos = snapshot.data!;
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: repos.length,
+                    itemBuilder: (context, index) {
+                      final repo = repos[index];
+                      final isSelected = _selectedIndex == index;
+
+                      final repoName = repo['name'] ?? 'Unnamed';
+                      final repoUrl = repo['html_url'] ?? '';
+                      final isPrivate = repo['private'] ?? false;
+                      final language = repo['language'] ?? 'Mixed';
+
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedIndex = index;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(bottom: 16.0),
+                          padding: const EdgeInsets.all(16.0),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFFECFDF5) : Colors.white,
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(width: 16),
-                          
-                          // Repo Details
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  repo['name']!,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected ? const Color(0xFF065F46) : const Color(0xFF1E293B),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
+                          child: Row(
+                            children: [
+                              // GitHub Icon
+                              Icon(
+                                Icons.folder_outlined,
+                                color: isSelected ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                size: 28,
+                              ),
+                              const SizedBox(width: 16),
+                              
+                              // Repo Details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildBadge(repo['visibility']!),
-                                    const SizedBox(width: 8),
-                                    _buildBadge(repo['lang']!),
-                                    const Spacer(),
                                     Text(
-                                      repo['updated']!,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF94A3B8),
+                                      repoName,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected ? const Color(0xFF065F46) : const Color(0xFF1E293B),
                                       ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        _buildBadge(isPrivate ? 'Private' : 'Public'),
+                                        const SizedBox(width: 8),
+                                        _buildBadge(language),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -173,15 +221,15 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                 child: ElevatedButton(
                   onPressed: _selectedIndex != null
                       ? () {
-                          // Pass the selected URL to the Add Repository Screen
-                          final selectedUrl = dummyRepos[_selectedIndex!]['url'];
+                          final selectedRepo = _reposCache[_selectedIndex!];
+                          final selectedUrl = selectedRepo['html_url'];
                           Navigator.pushNamed(
                             context,
                             '/add_repo',
                             arguments: selectedUrl,
                           );
                         }
-                      : null, // Disabled if nothing is selected
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     disabledBackgroundColor: const Color(0xFFE2E8F0),
@@ -207,7 +255,7 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
     );
   }
 
-  // Small UI helper for the badges (Private/Public, Dart/Python)
+  // Small UI helper for the badges (Private/Public, Language)
   Widget _buildBadge(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

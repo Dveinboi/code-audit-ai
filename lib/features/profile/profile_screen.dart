@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../issues/issues_screen.dart'; // Adjust path if needed
 import '../ai/ai_screen.dart'; // Adjust path if needed
 import '../history/history_screen.dart'; // Added History screen import
@@ -103,13 +105,18 @@ class ProfileScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Pops everything and routes back to the welcome/login screen
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login', 
-                      (route) => false,
-                    );
+                  onPressed: () async {
+                    // Sign out from Supabase
+                    await Supabase.instance.client.auth.signOut();
+                    
+                    // Navigate back to login screen
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login', 
+                        (route) => false,
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFEF2F2), // Light red tint

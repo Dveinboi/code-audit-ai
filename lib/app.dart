@@ -9,11 +9,7 @@ import 'features/profile/profile_screen.dart';
 import 'features/issues/issues_screen.dart';
 import 'features/ai/ai_screen.dart';
 import 'features/history/history_screen.dart';
-import 'splash_screen.dart'; // Splash screen import
-
-void main() {
-  runApp(const MyApp());
-}
+import 'splash_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -23,10 +19,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'CodeAudit AI',
       debugShowCheckedModeBanner: false,
-      initialRoute:
-          '/splash', // Set splash screen as the initial route entry point
+      theme: ThemeData.dark(),
+      initialRoute: '/splash',
       routes: {
-        '/splash': (context) => const SplashScreen(), // Registered Splash route
+        '/splash': (context) => const SplashScreen(),
         '/': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/add_repo': (context) => const AddRepositoryScreen(),

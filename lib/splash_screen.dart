@@ -11,6 +11,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   late VideoPlayerController _controller;
+  bool _navigated = false;
 
   @override
   void initState() {
@@ -21,18 +22,27 @@ class _SplashScreenState extends State<SplashScreen> {
           ..initialize().then((_) {
             setState(() {});
             _controller.play(); // Start playing immediately
+          }).catchError((error) {
+            print("Video failed to initialize: $error");
+            _navigateToDashboard();
           });
 
     // Automatically navigate away when the 5-second video finishes playing
     _controller.addListener(() {
-      if (_controller.value.position >= _controller.value.duration) {
+      if (_controller.value.isInitialized && _controller.value.position >= _controller.value.duration) {
         _navigateToDashboard();
       }
+    });
+
+    // Fallback timer: forcefully navigate after 6 seconds in case video player hangs indefinitely
+    Future.delayed(const Duration(seconds: 6), () {
+      _navigateToDashboard();
     });
   }
 
   void _navigateToDashboard() {
-    if (!mounted) return;
+    if (!mounted || _navigated) return;
+    _navigated = true;
 
     // Replace SplashScreen with OnboardingScreen
     Navigator.of(context).pushReplacement(
