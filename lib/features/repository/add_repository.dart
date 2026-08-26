@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 class AddRepositoryScreen extends StatefulWidget {
@@ -15,6 +18,7 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
   bool _maintainabilityEnabled = true;
   bool _dependenciesEnabled = true;
   late TextEditingController _urlController;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -37,6 +41,74 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
     _urlController.dispose();
     super.dispose();
   }
+
+  Future<void> _startAnalysis() async {
+    if (_urlController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a repository URL')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      final githubToken = session?.providerToken;
+
+      if (githubToken == null) {
+        throw Exception('GitHub token not found. Please log in again.');
+      }
+
+      // Use your computer's local IP for physical device testing
+      final backendUrl = 'http://192.168.29.207:8000/api/analyze'; 
+
+      final response = await http.post(
+        Uri.parse(backendUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'repo_url': _urlController.text,
+          'github_token': githubToken,
+          'is_private': true, // Simplified for now
+          'security': _securityEnabled,
+          'quality': _qualityEnabled,
+          'performance': _performanceEnabled,
+          'maintainability': _maintainabilityEnabled,
+          'dependencies': _dependenciesEnabled,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final jobId = data['job_id'];
+        
+        if (mounted) {
+          Navigator.pushNamed(
+            context,
+            '/analyzing',
+            arguments: jobId,
+          );
+        }
+      } else {
+        throw Exception('Failed to start analysis: ${response.body}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,9 +152,9 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
               const SizedBox(height: 24),
 
               // URL Input Field
-             // URL Input Field
               TextField(
-                controller: _urlController, // ADD THIS LINE
+                controller: _urlController,
+                style: const TextStyle(color: Colors.black), // Added this line to make text visible!
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.smart_toy_outlined, color: Color(0xFF94A3B8)),
                   hintText: 'https://github.com/user/repo',
@@ -165,9 +237,7 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/analyzing');
-                    },
+                    onPressed: _isLoading ? null : _startAnalysis,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black, // Dark Slate Gray
                       elevation: 0,
@@ -175,14 +245,16 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Start Analysis',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Start Analysis',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                   ),
                 ),
               ),

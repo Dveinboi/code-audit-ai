@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart'; 
+import 'theme_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,5 +13,9 @@ Future<void> main() async {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bXdma2F4b2J3emttd3NodXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMjM5NDcsImV4cCI6MjEwMTU5OTk0N30.tDc41x1W6eB1uJw_Od8bjis8ZbB04iILpRIs1ks1vzw',
   );
 
-  runApp(const MyApp());
+  final prefs = await SharedPreferences.getInstance();
+  final isDarkMode = prefs.getBool('is_dark_mode') ?? false;
+  themeNotifier = ValueNotifier(isDarkMode ? ThemeMode.dark : ThemeMode.light);
+
+  runApp(MyApp(themeNotifier: themeNotifier));
 }

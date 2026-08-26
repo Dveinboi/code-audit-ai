@@ -1,17 +1,18 @@
-import 'package:code_audit_ai/features/Issues/issues_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../Issues/issues_screen.dart';
 import '../profile/profile_screen.dart';
 import '../ai/ai_screen.dart';
 import '../history/history_screen.dart';
 import '../issues/category_issues_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  final String repoName;
-  final bool isLoggedInWithGithub; // Controls 'New Repo' flow destination
+  final String? jobId;
+  final bool isLoggedInWithGithub;
 
   const DashboardScreen({
     Key? key,
-    this.repoName = 'codeaudit-mobile-app',
+    this.jobId,
     this.isLoggedInWithGithub = true,
   }) : super(key: key);
 
@@ -21,26 +22,98 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentBottomNavIndex = 0;
+  
+  bool _isLoading = true;
+  String _repoName = 'Loading...';
+  String _avatarUrl = '';
+  
+  Map<String, dynamic>? _reportData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    try {
+      // 1. Get Avatar
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null && session.user.userMetadata != null) {
+        _avatarUrl = session.user.userMetadata!['avatar_url'] ?? '';
+      }
+
+      // 2. Get Report
+      String? activeJobId = widget.jobId;
+      
+      if (activeJobId == null) {
+        // Fetch the most recent report 
+        final latestReport = await Supabase.instance.client
+            .from('reports')
+            .select('job_id')
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+            
+        if (latestReport != null) {
+          activeJobId = latestReport['job_id'];
+        }
+      }
+
+      if (activeJobId != null) {
+        final reportResponse = await Supabase.instance.client
+            .from('reports')
+            .select('*')
+            .eq('job_id', activeJobId)
+            .maybeSingle();
+            
+        _reportData = reportResponse;
+        
+        // 3. Get Repo Name
+        if (reportResponse != null) {
+          final repoId = reportResponse['repository_id'];
+          if (repoId != null) {
+            final repoResponse = await Supabase.instance.client
+                .from('repositories')
+                .select('*')
+                .eq('id', repoId)
+                .maybeSingle();
+            
+            if (repoResponse != null) {
+              _repoName = repoResponse['repo_name'] ?? 'Unknown Repository';
+            } else {
+              _repoName = 'Repository not found';
+            }
+          }
+        } else {
+          _repoName = 'Report not generated yet';
+        }
+      } else {
+        _repoName = 'No Job Selected';
+      }
+      
+    } catch (e) {
+      print("Error fetching dashboard data: $e");
+      _repoName = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   void _onBottomNavTapped(int index) {
     if (index == 1) {
-      // Navigate to Issues Screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const IssuesScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const IssuesScreen()));
       return;
     }
     if (index == 2) {
-      // Navigate to AI Screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const AiScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
       return;
     }
     if (index == 3) {
-      // 'New Repo' tab pressed
       if (widget.isLoggedInWithGithub) {
         Navigator.pushNamed(context, '/select_repo');
       } else {
@@ -49,31 +122,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
     if (index == 4) {
-      // Navigate to History Screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const HistoryScreen()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
       return;
     }
-
     setState(() {
       _currentBottomNavIndex = index;
     });
   }
 
+  Color _getScoreColor(int score) {
+    if (score >= 80) return const Color(0xFF10B981); // Green
+    if (score >= 60) return const Color(0xFFF59E0B); // Orange
+    return const Color(0xFFEF4444); // Red
+  }
+
+  String _getScoreRating(int score) {
+    if (score >= 80) return 'Good';
+    if (score >= 60) return 'Needs Work';
+    return 'Critical';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final overallScore = _reportData?['overall_score'] ?? 0;
+    final scoreColor = _getScoreColor(overallScore);
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Stack(
           alignment: Alignment.center,
           children: [
-            // Left-aligned Profile Avatar with navigation to ProfileScreen
             Align(
               alignment: Alignment.centerLeft,
               child: GestureDetector(
@@ -85,29 +175,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   );
                 },
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: Color(0xFF1E293B),
-                  child: Icon(Icons.person, size: 20, color: Colors.white),
+                  backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFF1E293B),
+                  backgroundImage: _avatarUrl.isNotEmpty ? NetworkImage(_avatarUrl) : null,
+                  child: _avatarUrl.isEmpty ? const Icon(Icons.person, size: 20, color: Colors.white) : null,
                 ),
               ),
             ),
-            // Centered Repository Name
             Center(
-              child: Text(
-                widget.repoName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                child: Text(
+                  _repoName.split('/').last,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
       ),
-      body: SafeArea(
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)))
+        : SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Padding(
@@ -117,18 +212,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             child: Column(
               children: [
-                // Section Title
-                const Text(
+                Text(
                   'Overall Score',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: subtitleColor,
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // Overall Score Ring
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -136,23 +229,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       width: 180,
                       height: 180,
                       child: CircularProgressIndicator(
-                        value: 0.78, // 78/100
+                        value: overallScore / 100, 
                         strokeWidth: 10,
-                        backgroundColor: const Color(0xFFF1F5F9),
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF10B981),
-                        ),
+                        backgroundColor: dividerColor,
+                        valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
                       ),
                     ),
-                    const Column(
+                    Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '78',
+                          '$overallScore',
                           style: TextStyle(
                             fontSize: 48,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: textColor,
                           ),
                         ),
                         Text(
@@ -160,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF94A3B8),
+                            color: subtitleColor,
                           ),
                         ),
                       ],
@@ -169,184 +260,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                const Text(
-                  'Good',
+                Text(
+                  _getScoreRating(overallScore),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF10B981),
+                    color: scoreColor,
                   ),
                 ),
 
                 const SizedBox(height: 32),
 
-                // Metrics Row Cards mapping directly to the exact issues from the Issue page
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
                   child: Row(
                     children: [
-                      // Security Card -> Passes "Hardcoded API Key" & "SQL Injection Risk"
                       _buildMetricCard(
                         icon: Icons.shield_outlined,
                         title: 'Security',
-                        score: '82',
-                        scoreColor: const Color(0xFF10B981),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CategoryIssuesScreen(
-                                categoryName: 'Security',
-                                score: '82',
-                                scoreColor: const Color(0xFF10B981),
-                                categoryIssues: [
-                                  {
-                                    'title': 'Hardcoded API Key',
-                                    'severity': 'High',
-                                    'category': 'Security',
-                                    'location': 'src/config/api.ts:12',
-                                    'description':
-                                        'Potential hardcoded API key found in the code.',
-                                    'recommendation':
-                                        'Move API keys to environment variables (.env).',
-                                    'codeSnippet':
-                                        'const apiKey = "sk_live_958173958173";\nexport default apiKey;',
-                                    'line': '12',
-                                  },
-                                  {
-                                    'title': 'SQL Injection Risk',
-                                    'severity': 'High',
-                                    'category': 'Security',
-                                    'location': 'src/user/query.py:87',
-                                    'description':
-                                        'User input is concatenated into SQL query, which can lead to SQL injection.',
-                                    'recommendation':
-                                        'Use parameterized queries or ORM query builders.',
-                                    'codeSnippet':
-                                        'cursor.execute("SELECT * FROM users WHERE name = " + user_input)',
-                                    'line': '87',
-                                  },
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                        score: _reportData?['score_security'] ?? 0,
+                        issues: _reportData?['security_issues'] ?? [],
+                        category: 'Security',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
                       ),
                       const SizedBox(width: 12),
-
-                      // Quality Card -> Passes "Missing Input Validation"
                       _buildMetricCard(
                         icon: Icons.account_tree_outlined,
                         title: 'Quality',
-                        score: '74',
-                        scoreColor: const Color(0xFFF59E0B),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CategoryIssuesScreen(
-                                categoryName: 'Quality',
-                                score: '74',
-                                scoreColor: const Color(0xFFF59E0B),
-                                categoryIssues: [
-                                  {
-                                    'title': 'Missing Input Validation',
-                                    'severity': 'Medium',
-                                    'category': 'Quality',
-                                    'location': 'src/auth/login.js:45',
-                                    'description':
-                                        'User input is not validated.',
-                                    'recommendation':
-                                        'Implement robust validation rules before processing input data.',
-                                    'codeSnippet':
-                                        'function handleLogin(input) { authenticate(input); }',
-                                    'line': '45',
-                                  },
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                        score: _reportData?['score_quality'] ?? 0,
+                        issues: _reportData?['quality_issues'] ?? [],
+                        category: 'Quality',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
                       ),
                       const SizedBox(width: 12),
-
-                      // Performance Card
                       _buildMetricCard(
                         icon: Icons.speed_outlined,
                         title: 'Performance',
-                        score: '68',
-                        scoreColor: const Color(0xFFF59E0B),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CategoryIssuesScreen(
-                                categoryName: 'Performance',
-                                score: '68',
-                                scoreColor: const Color(0xFFF59E0B),
-                                categoryIssues: [],
-                              ),
-                            ),
-                          );
-                        },
+                        score: _reportData?['score_performance'] ?? 0,
+                        issues: [],
+                        category: 'Performance',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
                       ),
                       const SizedBox(width: 12),
-
-                      // Maintainability Card
                       _buildMetricCard(
                         icon: Icons.build_outlined,
                         title: 'Maintainability',
-                        score: '90',
-                        scoreColor: const Color(0xFF10B981),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CategoryIssuesScreen(
-                                categoryName: 'Maintainability',
-                                score: '90',
-                                scoreColor: const Color(0xFF10B981),
-                                categoryIssues: [],
-                              ),
-                            ),
-                          );
-                        },
+                        score: _reportData?['score_maintainability'] ?? 0,
+                        issues: [],
+                        category: 'Maintainability',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
                       ),
                       const SizedBox(width: 12),
-
-                      // Deps Card -> Passes "Outdated Dependency"
                       _buildMetricCard(
                         icon: Icons.extension_outlined,
                         title: 'Deps',
-                        score: '65',
-                        scoreColor: const Color(0xFFF59E0B),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CategoryIssuesScreen(
-                                categoryName: 'Dependencies',
-                                score: '65',
-                                scoreColor: const Color(0xFFF59E0B),
-                                categoryIssues: [
-                                  {
-                                    'title': 'Outdated Dependency',
-                                    'severity': 'Medium',
-                                    'category': 'Dependencies',
-                                    'location': 'Package: lodash',
-                                    'description':
-                                        'Update lodash to v4.17.21 or higher.',
-                                    'recommendation':
-                                        'Update package version configuration in your project dependencies.',
-                                    'codeSnippet': '"lodash": "^4.17.15"',
-                                    'line': '1',
-                                  },
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                        score: _reportData?['score_dependencies'] ?? 0,
+                        issues: _reportData?['dependency_issues'] ?? [],
+                        category: 'Dependencies',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildMetricCard(
+                        icon: Icons.architecture_outlined,
+                        title: 'Architecture',
+                        score: _reportData?['score_architecture'] ?? 0,
+                        issues: [],
+                        category: 'Architecture',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildMetricCard(
+                        icon: Icons.science_outlined,
+                        title: 'Testing',
+                        score: _reportData?['score_testing'] ?? 0,
+                        issues: [],
+                        category: 'Testing',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildMetricCard(
+                        icon: Icons.brush_outlined,
+                        title: 'UX/UI',
+                        score: _reportData?['score_ux'] ?? 0,
+                        issues: [],
+                        category: 'UX/UI',
+                        cardColor: cardColor,
+                        borderColor: borderColor,
+                        textColor: subtitleColor,
                       ),
                     ],
                   ),
@@ -354,19 +369,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 const SizedBox(height: 28),
 
-                // AI Summary Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardColor,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFE2E8F0),
+                      color: borderColor,
                       width: 1.5,
                     ),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -374,15 +388,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Text(
-                        'The repository is in good condition. Security and performance need improvement. Consider addressing the high priority issues.',
+                        _reportData?['ai_summary'] ?? 'No AI Summary generated.',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: subtitleColor,
                           height: 1.6,
                         ),
                       ),
@@ -390,18 +404,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Generate PDF Report Button UI
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      // PDF generation logic will go here later
-                    },
+                    onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(
-                        0xFF1E293B,
-                      ), // Dark professional theme matching your AppBar avatar
+                      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFF1E293B), 
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -425,19 +434,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
 
-      // Custom Bottom Navigation Bar
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentBottomNavIndex,
           onTap: _onBottomNavTapped,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: bgColor,
           elevation: 0,
           selectedItemColor: const Color(0xFF10B981),
-          unselectedItemColor: const Color(0xFF94A3B8),
+          unselectedItemColor: subtitleColor,
           selectedLabelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 12,
@@ -478,43 +486,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Metric Card Builder Helper with onTap action
   Widget _buildMetricCard({
     required IconData icon,
     required String title,
-    required String score,
-    required Color scoreColor,
-    required VoidCallback onTap,
+    required int score,
+    required List<dynamic> issues,
+    required String category,
+    required Color cardColor,
+    required Color borderColor,
+    required Color textColor,
   }) {
+    final scoreColor = _getScoreColor(score);
+    
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CategoryIssuesScreen(
+              categoryName: category,
+              score: score.toString(),
+              scoreColor: scoreColor,
+              categoryIssues: issues.map((e) => e as Map<String, dynamic>).toList(),
+            ),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 105,
         height: 125,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+          border: Border.all(color: borderColor, width: 1.5),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(icon, color: const Color(0xFF64748B), size: 22),
+            Icon(icon, color: textColor, size: 22),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF64748B),
+                color: textColor,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
             Text(
-              score,
+              score.toString(),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,

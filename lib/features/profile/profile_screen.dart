@@ -1,213 +1,233 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../issues/issues_screen.dart'; // Adjust path if needed
-import '../ai/ai_screen.dart'; // Adjust path if needed
-import '../history/history_screen.dart'; // Added History screen import
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../theme_provider.dart'; // for themeNotifier
+import '../issues/issues_screen.dart'; 
+import '../ai/ai_screen.dart'; 
+import '../history/history_screen.dart'; 
+import 'connected_account_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+    // Safely get user metadata from Supabase
+    final user = Supabase.instance.client.auth.currentUser;
+    final metadata = user?.userMetadata ?? {};
+    final avatarUrl = metadata['avatar_url'] as String? ?? '';
+    final fullName = metadata['full_name'] ?? metadata['name'] ?? 'Unknown User';
+    final userName = metadata['preferred_username'] ?? metadata['user_name'] ?? 'unknown';
+
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, _) {
+        final isDark = currentMode == ThemeMode.dark;
+        final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+        final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+        final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+        final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
+        return Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            backgroundColor: bgColor,
+            elevation: 0,
+            centerTitle: true,
+            automaticallyImplyLeading: false,
+            title: Text(
+              'Profile',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
           ),
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // User Info Header Section
-              Row(
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Color(0xFF1E293B),
-                    child: Icon(
-                      Icons.code, // GitHub-style placeholder icon
-                      size: 32,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'John Doe',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
+                  // User Info Header Section
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: const Color(0xFF1E293B),
+                        backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl.isEmpty
+                            ? const Icon(Icons.person, size: 32, color: Colors.white)
+                            : null,
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        '@johndoe',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
-                        ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            fullName,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '@$userName',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: subtitleColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  const SizedBox(height: 32),
+
+                  // Menu Options List
+                  _buildProfileMenuItem(
+                    icon: Icons.code_outlined,
+                    title: 'Connected Account',
+                    trailingText: 'GitHub',
+                    textColor: textColor,
+                    subtitleColor: subtitleColor,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ConnectedAccountScreen()),
+                      );
+                    },
+                  ),
+                  Divider(color: dividerColor, height: 1),
+                  _buildProfileMenuToggle(
+                    icon: Icons.dark_mode_outlined,
+                    title: 'Dark Mode',
+                    value: isDark,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor,
+                    onChanged: (val) async {
+                      themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('is_dark_mode', val);
+                    },
+                  ),
+                  Divider(color: dividerColor, height: 1),
+                  _buildProfileMenuItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifications',
+                    textColor: textColor,
+                    subtitleColor: subtitleColor,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  // Logout Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await Supabase.instance.client.auth.signOut();
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFEF2F2),
+                        foregroundColor: const Color(0xFFEF4444),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Logout',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
                 ],
               ),
-              const SizedBox(height: 32),
-
-              // Menu Options List
-              _buildProfileMenuItem(
-                icon: Icons.code_outlined,
-                title: 'Connected Account',
-                trailingText: 'GitHub',
-                onTap: () {},
-              ),
-              const Divider(color: Color(0xFFF1F5F9), height: 1),
-              _buildProfileMenuItem(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                onTap: () {},
-              ),
-              const Divider(color: Color(0xFFF1F5F9), height: 1),
-              _buildProfileMenuItem(
-                icon: Icons.notifications_outlined,
-                title: 'Notifications',
-                onTap: () {},
-              ),
-              const Divider(color: Color(0xFFF1F5F9), height: 1),
-              _buildProfileMenuItem(
-                icon: Icons.help_outline,
-                title: 'Help & Support',
-                onTap: () {},
-              ),
-
-              // Pushes the logout button slightly lower with increased spacing
-              const SizedBox(height: 48),
-
-              // Logout Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    // Sign out from Supabase
-                    await Supabase.instance.client.auth.signOut();
-                    
-                    // Navigate back to login screen
-                    if (context.mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/login', 
-                        (route) => false,
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFEF2F2), // Light red tint
-                    foregroundColor: const Color(0xFFEF4444), // Red text color
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Logout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            ),
+          ),
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
+            ),
+            child: BottomNavigationBar(
+              currentIndex: 0, 
+              onTap: (index) {
+                if (index == 0) {
+                  Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
+                } else if (index == 1) {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const IssuesScreen()));
+                } else if (index == 2) {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
+                } else if (index == 3) {
+                  Navigator.pushNamed(context, '/select_repo');
+                } else if (index == 4) {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
+                }
+              },
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: bgColor,
+              elevation: 0,
+              selectedItemColor: const Color(0xFF10B981),
+              unselectedItemColor: subtitleColor,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: 'Overview',
                 ),
-              ),
-              const Spacer(),
-            ],
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.bug_report_outlined),
+                  activeIcon: Icon(Icons.bug_report),
+                  label: 'Issues',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.auto_awesome_outlined),
+                  activeIcon: Icon(Icons.auto_awesome),
+                  label: 'AI',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.add_circle_outline),
+                  activeIcon: Icon(Icons.add_circle),
+                  label: 'New Repo',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.history_outlined),
+                  activeIcon: Icon(Icons.history),
+                  label: 'History',
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
-
-      // Bottom Navigation Bar added here
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: 0, // Profile doesn't technically map to index 0, but this keeps the nav styling consistent
-          onTap: (index) {
-            if (index == 0) {
-              Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
-            } else if (index == 1) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const IssuesScreen()));
-            } else if (index == 2) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
-            } else if (index == 3) {
-              Navigator.pushNamed(context, '/select_repo');
-            } else if (index == 4) {
-              // Added Navigation to History screen
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          selectedItemColor: const Color(0xFF10B981),
-          unselectedItemColor: const Color(0xFF94A3B8),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Overview',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bug_report_outlined),
-              activeIcon: Icon(Icons.bug_report),
-              label: 'Issues',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.auto_awesome_outlined),
-              activeIcon: Icon(Icons.auto_awesome),
-              label: 'AI',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline),
-              activeIcon: Icon(Icons.add_circle),
-              label: 'New Repo',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history),
-              label: 'History',
-            ),
-          ],
-        ),
-      ),
+        );
+      }
     );
   }
 
-  // Helper widget for list items
   Widget _buildProfileMenuItem({
     required IconData icon,
     required String title,
     String? trailingText,
+    required Color textColor,
+    required Color subtitleColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -216,35 +236,65 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16.0),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF64748B), size: 22),
+            Icon(icon, color: subtitleColor, size: 22),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF1E293B),
+                  color: textColor,
                 ),
               ),
             ),
             if (trailingText != null)
               Text(
                 trailingText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF94A3B8),
+                  color: subtitleColor,
                 ),
               ),
             const SizedBox(width: 8),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 14,
-              color: Color(0xFFCBD5E1),
-            ),
+            Icon(Icons.arrow_forward_ios, size: 14, color: subtitleColor.withOpacity(0.5)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProfileMenuToggle({
+    required IconData icon,
+    required String title,
+    required bool value,
+    required Color textColor,
+    required Color subtitleColor,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, color: subtitleColor, size: 22),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: textColor,
+              ),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: const Color(0xFF10B981),
+          ),
+        ],
       ),
     );
   }

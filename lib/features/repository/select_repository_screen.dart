@@ -51,36 +51,26 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.red),
-            tooltip: 'Force Logout',
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-              
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-              }
-            },
-          ),
-        ],
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -89,15 +79,15 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+                      color: textColor,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Choose a project to analyze from your connected GitHub account.',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF64748B),
+                      color: subtitleColor,
                       height: 1.5,
                     ),
                   ),
@@ -106,7 +96,6 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Repository List FutureBuilder
             Expanded(
               child: FutureBuilder<List<dynamic>>(
                 future: _repositoriesFuture,
@@ -127,10 +116,10 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                       ),
                     );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
                         'No repositories found.',
-                        style: TextStyle(color: Color(0xFF64748B)),
+                        style: TextStyle(color: subtitleColor),
                       ),
                     );
                   }
@@ -161,24 +150,24 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                           margin: const EdgeInsets.only(bottom: 16.0),
                           padding: const EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFECFDF5) : Colors.white,
+                            color: isSelected 
+                                ? (isDark ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFECFDF5))
+                                : cardColor,
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                              color: isSelected ? const Color(0xFF10B981) : borderColor,
                               width: 1.5,
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
-                              // GitHub Icon
                               Icon(
                                 Icons.folder_outlined,
-                                color: isSelected ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                color: isSelected ? const Color(0xFF10B981) : subtitleColor,
                                 size: 28,
                               ),
                               const SizedBox(width: 16),
                               
-                              // Repo Details
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,15 +177,17 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
-                                        color: isSelected ? const Color(0xFF065F46) : const Color(0xFF1E293B),
+                                        color: isSelected 
+                                            ? (isDark ? const Color(0xFF34D399) : const Color(0xFF065F46))
+                                            : textColor,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
-                                        _buildBadge(isPrivate ? 'Private' : 'Public'),
+                                        _buildBadge(isPrivate ? 'Private' : 'Public', isDark, subtitleColor),
                                         const SizedBox(width: 8),
-                                        _buildBadge(language),
+                                        _buildBadge(language, isDark, subtitleColor),
                                       ],
                                     ),
                                   ],
@@ -212,7 +203,6 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
               ),
             ),
 
-            // Bottom Confirm Button
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
@@ -231,8 +221,8 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.black,
+                    disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -241,7 +231,7 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                   child: Text(
                     'Confirm Selection',
                     style: TextStyle(
-                      color: _selectedIndex != null ? Colors.white : const Color(0xFF94A3B8),
+                      color: _selectedIndex != null ? Colors.white : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -255,20 +245,19 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
     );
   }
 
-  // Small UI helper for the badges (Private/Public, Language)
-  Widget _buildBadge(String text) {
+  Widget _buildBadge(String text, bool isDark, Color subtitleColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: Color(0xFF475569),
+          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
         ),
       ),
     );

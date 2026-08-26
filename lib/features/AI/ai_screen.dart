@@ -8,28 +8,31 @@ class AiScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
-        // Added the Back Arrow Button here
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () {
-            // Pops all screens to return directly to the Overview (Dashboard)
             Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
-            
-            // Note: If you haven't set up named routes and want a simpler fallback,
-            // you can replace the line above with: Navigator.pop(context);
           },
         ),
-        title: const Text(
+        title: Text(
           'AI Recommendations',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
       ),
@@ -39,16 +42,15 @@ class AiScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Summary Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                  border: Border.all(color: borderColor, width: 1.5),
                 ),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -56,15 +58,15 @@ class AiScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: textColor,
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Text(
                       'The repository has security vulnerabilities and code quality issues that should be addressed to improve the overall score.',
                       style: TextStyle(
                         fontSize: 15,
-                        color: Color(0xFF475569),
+                        color: subtitleColor,
                         height: 1.5,
                       ),
                     ),
@@ -74,54 +76,65 @@ class AiScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Top Recommendations Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                  border: Border.all(color: borderColor, width: 1.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Top Recommendations',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 16),
                     _buildRecommendationItem(
                       number: '1',
                       text: 'Fix 2 high severity security issues',
+                      isDark: isDark,
+                      textColor: textColor,
+                      dividerColor: dividerColor,
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4.0),
-                      child: Divider(color: Color(0xFFF1F5F9), height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Divider(color: dividerColor, height: 1),
                     ),
                     _buildRecommendationItem(
                       number: '2',
                       text: 'Update 3 outdated dependencies',
+                      isDark: isDark,
+                      textColor: textColor,
+                      dividerColor: dividerColor,
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4.0),
-                      child: Divider(color: Color(0xFFF1F5F9), height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Divider(color: dividerColor, height: 1),
                     ),
                     _buildRecommendationItem(
                       number: '3',
                       text: 'Reduce code complexity in high-risk functions',
+                      isDark: isDark,
+                      textColor: textColor,
+                      dividerColor: dividerColor,
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4.0),
-                      child: Divider(color: Color(0xFFF1F5F9), height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Divider(color: dividerColor, height: 1),
                     ),
                     _buildRecommendationItem(
                       number: '4',
                       text: 'Add input validation for user facing forms',
+                      isDark: isDark,
+                      textColor: textColor,
+                      dividerColor: dividerColor,
                     ),
                   ],
                 ),
@@ -131,13 +144,12 @@ class AiScreen extends StatelessWidget {
         ),
       ),
 
-      // Bottom Navigation Bar
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
         ),
         child: BottomNavigationBar(
-          currentIndex: 2, // 'AI' tab selected
+          currentIndex: 2,
           onTap: (index) {
             if (index == 0) {
               Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
@@ -146,15 +158,14 @@ class AiScreen extends StatelessWidget {
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo');
             } else if (index == 4) {
-              // Updated to correctly navigate to History Screen
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: bgColor,
           elevation: 0,
           selectedItemColor: const Color(0xFF10B981),
-          unselectedItemColor: const Color(0xFF94A3B8),
+          unselectedItemColor: subtitleColor,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [
@@ -169,48 +180,44 @@ class AiScreen extends StatelessWidget {
     );
   }
 
-  // Helper widget to build the numbered recommendation rows
-  Widget _buildRecommendationItem({required String number, required String text}) {
+  Widget _buildRecommendationItem({required String number, required String text, required bool isDark, required Color textColor, required Color dividerColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Row(
         children: [
-          // Circular Number Badge
           Container(
             width: 24,
             height: 24,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF1F5F9),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Text(
               number,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+                color: textColor,
               ),
             ),
           ),
           const SizedBox(width: 16),
-          // Recommendation Text
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF475569),
+                color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          // Chevron Icon
-          const Icon(
+          Icon(
             Icons.chevron_right,
             size: 20,
-            color: Color(0xFFCBD5E1),
+            color: dividerColor,
           ),
         ],
       ),

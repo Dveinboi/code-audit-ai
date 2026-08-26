@@ -20,38 +20,44 @@ class CategoryIssuesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           '$categoryName Details',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Category Score Banner Card
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                  border: Border.all(color: borderColor, width: 1.5),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -61,16 +67,16 @@ class CategoryIssuesScreen extends StatelessWidget {
                       children: [
                         Text(
                           '$categoryName Score',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: textColor,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Evaluated from recent code scans',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          style: TextStyle(fontSize: 13, color: subtitleColor),
                         ),
                       ],
                     ),
@@ -86,12 +92,12 @@ class CategoryIssuesScreen extends StatelessWidget {
                             color: scoreColor,
                           ),
                         ),
-                        const Text(
+                        Text(
                           ' /100',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF94A3B8),
+                            color: subtitleColor,
                           ),
                         ),
                       ],
@@ -101,8 +107,8 @@ class CategoryIssuesScreen extends StatelessWidget {
               ),
             ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 4.0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -110,20 +116,19 @@ class CategoryIssuesScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: textColor,
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
 
-            // Filtered Issues List for this Category
             Expanded(
               child: categoryIssues.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'No issues found in this category!',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                        style: TextStyle(color: subtitleColor, fontSize: 15),
                       ),
                     )
                   : ListView.builder(
@@ -136,9 +141,9 @@ class CategoryIssuesScreen extends StatelessWidget {
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: cardColor,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                            border: Border.all(color: borderColor, width: 1.5),
                           ),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
@@ -164,10 +169,10 @@ class CategoryIssuesScreen extends StatelessWidget {
                                           const SizedBox(width: 8),
                                           Text(
                                             issue['title'],
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1E293B),
+                                              color: textColor,
                                             ),
                                           ),
                                         ],
@@ -175,7 +180,7 @@ class CategoryIssuesScreen extends StatelessWidget {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: isHigh ? const Color(0xFFFEF2F2) : const Color(0xFFFEF3C7),
+                                          color: isHigh ? const Color(0xFFFEF2F2).withOpacity(isDark ? 0.1 : 1.0) : const Color(0xFFFEF3C7).withOpacity(isDark ? 0.1 : 1.0),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
@@ -192,17 +197,17 @@ class CategoryIssuesScreen extends StatelessWidget {
                                   const SizedBox(height: 8),
                                   Text(
                                     'File: ${issue['location']}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
-                                      color: Color(0xFF64748B),
+                                      color: subtitleColor,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
                                     issue['description'],
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
-                                      color: Color(0xFF475569),
+                                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                                     ),
                                   ),
                                 ],

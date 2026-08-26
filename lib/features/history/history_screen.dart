@@ -15,45 +15,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: true,
-        // Changed to a back arrow returning to Dashboard
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () {
             Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
           },
         ),
-        title: const Text(
+        title: Text(
           'History',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Tabs Row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: borderColor),
                 ),
                 child: Row(
                   children: [
-                    _buildTab('All'),
-                    _buildTab('Recent'),
-                    _buildTab('Favorites'),
+                    _buildTab('All', isDark, cardColor, textColor, subtitleColor),
+                    _buildTab('Recent', isDark, cardColor, textColor, subtitleColor),
+                    _buildTab('Favorites', isDark, cardColor, textColor, subtitleColor),
                   ],
                 ),
               ),
@@ -61,7 +67,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             
             const SizedBox(height: 16),
 
-            // History List (One Dummy Repo)
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -70,7 +75,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     repoName: 'facebook/react',
                     date: 'Analyzed on 20 May 2025, 10:30 AM',
                     score: 78,
-                    scoreColor: const Color(0xFF10B981), // Green
+                    scoreColor: const Color(0xFF10B981),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -82,8 +87,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                       );
                     },
+                    textColor: textColor,
+                    subtitleColor: subtitleColor,
+                    dividerColor: dividerColor,
                   ),
-                  const Divider(color: Color(0xFFF1F5F9), height: 1),
+                  Divider(color: dividerColor, height: 1),
                 ],
               ),
             ),
@@ -91,13 +99,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
 
-      // Bottom Navigation Bar
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
         ),
         child: BottomNavigationBar(
-          currentIndex: 4, // 'History' tab selected
+          currentIndex: 4,
           onTap: (index) {
             if (index == 0) {
               Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
@@ -108,14 +115,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo');
             } else if (index == 4) {
-              // Do nothing, we are already on the History screen!
+              // Do nothing
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: bgColor,
           elevation: 0,
           selectedItemColor: const Color(0xFF10B981),
-          unselectedItemColor: const Color(0xFF94A3B8),
+          unselectedItemColor: subtitleColor,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [
@@ -130,7 +137,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildTab(String title) {
+  Widget _buildTab(String title, bool isDark, Color cardColor, Color textColor, Color subtitleColor) {
     final isSelected = _selectedTab == title;
     return Expanded(
       child: GestureDetector(
@@ -142,9 +149,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? cardColor : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
-            boxShadow: isSelected
+            boxShadow: isSelected && !isDark
                 ? [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -159,7 +166,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               title,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                color: isSelected ? textColor : subtitleColor,
                 fontSize: 14,
               ),
             ),
@@ -175,6 +182,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     required int score,
     required Color scoreColor,
     required VoidCallback onTap,
+    required Color textColor,
+    required Color subtitleColor,
+    required Color dividerColor,
   }) {
     return InkWell(
       onTap: onTap,
@@ -182,7 +192,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         padding: const EdgeInsets.symmetric(vertical: 20.0),
         child: Row(
           children: [
-            // Circular Score
             Stack(
               alignment: Alignment.center,
               children: [
@@ -192,40 +201,39 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: CircularProgressIndicator(
                     value: score / 100,
                     strokeWidth: 4,
-                    backgroundColor: const Color(0xFFF1F5F9),
+                    backgroundColor: dividerColor,
                     valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
                   ),
                 ),
                 Text(
                   score.toString(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: textColor,
                   ),
                 ),
               ],
             ),
             const SizedBox(width: 16),
-            // Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     repoName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     date,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF94A3B8),
+                      color: subtitleColor,
                     ),
                   ),
                 ],

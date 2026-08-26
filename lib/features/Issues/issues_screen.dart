@@ -59,50 +59,54 @@ class _IssuesScreenState extends State<IssuesScreen> {
         ? _issues
         : _issues.where((i) => i['severity'] == _selectedFilter).toList();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: true,
-        // Updated Back Arrow Button to route directly back to Dashboard
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () {
             Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
           },
         ),
-        title: const Text(
+        title: Text(
           'Issues',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Filter Chips Row
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
-                  _buildFilterChip('All', '24'),
+                  _buildFilterChip('All', '24', isDark, textColor, subtitleColor, cardColor, borderColor),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Critical', '2'),
+                  _buildFilterChip('Critical', '2', isDark, textColor, subtitleColor, cardColor, borderColor),
                   const SizedBox(width: 8),
-                  _buildFilterChip('High', '6'),
+                  _buildFilterChip('High', '6', isDark, textColor, subtitleColor, cardColor, borderColor),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Medium', '8'),
+                  _buildFilterChip('Medium', '8', isDark, textColor, subtitleColor, cardColor, borderColor),
                 ],
               ),
             ),
             const SizedBox(height: 8),
-
-            // Issues List
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -114,9 +118,9 @@ class _IssuesScreenState extends State<IssuesScreen> {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                      border: Border.all(color: borderColor, width: 1.5),
                     ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
@@ -142,10 +146,10 @@ class _IssuesScreenState extends State<IssuesScreen> {
                                     const SizedBox(width: 8),
                                     Text(
                                       issue['title'],
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1E293B),
+                                        color: textColor,
                                       ),
                                     ),
                                   ],
@@ -153,7 +157,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: isHigh ? const Color(0xFFFEF2F2) : const Color(0xFFFEF3C7),
+                                    color: isHigh ? const Color(0xFFFEF2F2).withOpacity(isDark ? 0.1 : 1.0) : const Color(0xFFFEF3C7).withOpacity(isDark ? 0.1 : 1.0),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -170,17 +174,17 @@ class _IssuesScreenState extends State<IssuesScreen> {
                             const SizedBox(height: 8),
                             Text(
                               'File: ${issue['location']}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF64748B),
+                                color: subtitleColor,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               issue['description'],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF475569),
+                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                               ),
                             ),
                           ],
@@ -194,33 +198,30 @@ class _IssuesScreenState extends State<IssuesScreen> {
           ],
         ),
       ),
-
-      // Bottom Navigation Bar
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
         ),
         child: BottomNavigationBar(
-          currentIndex: 1, // 'Issues' selected
+          currentIndex: 1,
           onTap: (index) {
             if (index == 0) {
               Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
             } else if (index == 1) {
-              // Do nothing, already on Issues Screen
+              // Do nothing
             } else if (index == 2) {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo');
             } else if (index == 4) {
-              // Updated to correctly navigate to History Screen
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: bgColor,
           elevation: 0,
           selectedItemColor: const Color(0xFF10B981),
-          unselectedItemColor: const Color(0xFF94A3B8),
+          unselectedItemColor: subtitleColor,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [
@@ -235,21 +236,21 @@ class _IssuesScreenState extends State<IssuesScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String count) {
+  Widget _buildFilterChip(String label, String count, bool isDark, Color textColor, Color subtitleColor, Color cardColor, Color borderColor) {
     final isSelected = _selectedFilter == label;
     return ChoiceChip(
       label: Text('$label $count'),
       selected: isSelected,
-      selectedColor: const Color(0xFF1E293B),
-      backgroundColor: const Color(0xFFF8FAFC),
+      selectedColor: isDark ? const Color(0xFF1E293B) : const Color(0xFF1E293B),
+      backgroundColor: isDark ? cardColor : const Color(0xFFF8FAFC),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : const Color(0xFF64748B),
+        color: isSelected ? Colors.white : subtitleColor,
         fontWeight: FontWeight.w600,
         fontSize: 13,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0)),
+        side: BorderSide(color: isSelected ? Colors.transparent : borderColor),
       ),
       onSelected: (selected) {
         setState(() {
