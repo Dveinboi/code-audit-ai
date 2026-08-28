@@ -59,7 +59,41 @@ class ApiService {
         'reports': reports,
       };
     } catch (e) {
-      throw Exception('Error fetching repository history from Supabase: $e');
+      throw Exception('Error fetching repository history: $e');
+    }
+  }
+
+  static Future<void> deleteRepository(dynamic repositoryId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
+      
+      await _supabase.from('reports')
+          .delete()
+          .eq('repository_id', repositoryId)
+          .eq('user_id', userId);
+          
+    } catch (e) {
+      throw Exception('Error deleting repository history: $e');
+    }
+  }
+
+  static Future<void> deleteReport(dynamic reportId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
+      
+      final res = await _supabase.from('reports')
+          .delete()
+          .eq('id', reportId)
+          .eq('user_id', userId)
+          .select();
+          
+      if (res.isEmpty) {
+        throw Exception('Deletion blocked by database permissions or report not found.');
+      }
+    } catch (e) {
+      throw Exception('Error deleting report: $e');
     }
   }
 }

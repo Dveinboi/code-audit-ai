@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class SelectRepositoryScreen extends StatefulWidget {
   const SelectRepositoryScreen({Key? key}) : super(key: key);
 
@@ -25,10 +27,39 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
   // Fetch real public and private repositories using Supabase session token
   Future<List<dynamic>> fetchUserRepositories() async {
     final session = Supabase.instance.client.auth.currentSession;
-    final accessToken = session?.providerToken;
+    String? accessToken = session?.providerToken;
 
     if (accessToken == null) {
-      throw Exception('No GitHub provider token found. User might not be authenticated properly.');
+      final prefs = await SharedPreferences.getInstance();
+      accessToken = prefs.getString('github_provider_token');
+    }
+
+    if (accessToken == null) {
+      // Fallback: Fetch public repositories for the username if token is lost after restart
+      final user = Supabase.instance.client.auth.currentUser;
+      final metadata = user?.userMetadata ?? {};
+      final userName = metadata['preferred_username'] ?? metadata['user_name'];
+      
+      if (userName != null) {
+        final response = await http.get(
+          Uri.parse('https://api.github.com/users/$userName/repos?sort=updated'),
+          headers: {'Accept': 'application/vnd.github+json'},
+        );
+        if (response.statusCode == 200) {
+          List<dynamic> repos = jsonDecode(response.body);
+          _reposCache = repos;
+          return repos;
+        }
+      }
+      
+      // If even the username is unavailable, use mock demo repos
+      final mockRepos = [
+        {'name': 'broke_no_more', 'html_url': 'https://github.com/demo/broke_no_more', 'private': true, 'language': 'Dart'},
+        {'name': 'ecommerce_app', 'html_url': 'https://github.com/demo/ecommerce_app', 'private': false, 'language': 'Flutter'},
+        {'name': 'backend_api', 'html_url': 'https://github.com/demo/backend_api', 'private': true, 'language': 'Python'}
+      ];
+      _reposCache = mockRepos;
+      return mockRepos;
     }
 
     final response = await http.get(
@@ -51,6 +82,7 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showNavbar = ModalRoute.of(context)?.settings.arguments as bool? ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
     final cardColor = isDark ? const Color(0xFF111111) : Colors.white;
@@ -205,43 +237,125 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
 
             Padding(
               padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _selectedIndex != null
-                      ? () {
-                          final selectedRepo = _reposCache[_selectedIndex!];
-                          final selectedUrl = selectedRepo['html_url'];
-                          Navigator.pushNamed(
-                            context,
-                            '/add_repo',
-                            arguments: selectedUrl,
-                          );
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.black,
-                    disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _selectedIndex != null
+                          ? () {
+                              final selectedRepo = _reposCache[_selectedIndex!];
+                              final selectedUrl = selectedRepo['html_url'];
+                              Navigator.pushNamed(
+                                context,
+                                '/add_repo',
+                                arguments: selectedUrl,
+                              );
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.black,
+                        disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Confirm Selection',
+                        style: TextStyle(
+                          color: _selectedIndex != null ? Colors.white : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Confirm Selection',
-                    style: TextStyle(
-                      color: _selectedIndex != null ? Colors.white : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  if (!showNavbar) ...[
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushReplacementNamed(context, '/dashboard');
+                      },
+                      child: Text(
+                        'Skip for now',
+                        style: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  ],
+                ],
               ),
             ),
           ],
         ),
       ),
+      bottomNavigationBar: showNavbar ? Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9), width: 1.5)),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: 3,
+          onTap: (index) {
+            if (index == 0) {
+              Navigator.pop(context); // Go back to dashboard
+            } else if (index == 1) {
+              Navigator.pushReplacementNamed(context, '/issues');
+            } else if (index == 2) {
+              Navigator.pushReplacementNamed(context, '/ai');
+            } else if (index == 3) {
+              // Already on select repo
+            } else if (index == 4) {
+              Navigator.pushReplacementNamed(context, '/history');
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: bgColor,
+          elevation: 0,
+          selectedItemColor: const Color(0xFF10B981),
+          unselectedItemColor: subtitleColor,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Overview',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bug_report_outlined),
+              activeIcon: Icon(Icons.bug_report),
+              label: 'Issues',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.auto_awesome_outlined),
+              activeIcon: Icon(Icons.auto_awesome),
+              label: 'AI',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.add_circle_outline),
+              activeIcon: Icon(Icons.add_circle),
+              label: 'New Repo',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history_outlined),
+              activeIcon: Icon(Icons.history),
+              label: 'History',
+            ),
+          ],
+        ),
+      ) : null,
     );
   }
 

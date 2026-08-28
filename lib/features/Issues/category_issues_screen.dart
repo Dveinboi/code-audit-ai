@@ -62,23 +62,27 @@ class CategoryIssuesScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$categoryName Score',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$categoryName Score',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Evaluated from recent code scans',
-                          style: TextStyle(fontSize: 13, color: subtitleColor),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'Evaluated from recent code scans',
+                            style: TextStyle(fontSize: 13, color: subtitleColor),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -163,19 +167,25 @@ class CategoryIssuesScreen extends StatelessWidget {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFFEF4444)),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            issue['title'],
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: textColor,
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFFEF4444)),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                issue['title']?.toString() ?? 'Unknown Issue',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: textColor,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -184,7 +194,7 @@ class CategoryIssuesScreen extends StatelessWidget {
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
-                                          issue['severity'],
+                                          issue['severity']?.toString() ?? 'Medium',
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
@@ -196,7 +206,7 @@ class CategoryIssuesScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'File: ${issue['location']}',
+                                    'File: ${issue['evidence']?.toString() ?? issue['location']?.toString() ?? 'Unknown location'}',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: subtitleColor,
@@ -204,7 +214,7 @@ class CategoryIssuesScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    issue['description'],
+                                    issue['impact']?.toString() ?? issue['description']?.toString() ?? 'No description provided',
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),

@@ -10,24 +10,33 @@ class IssueDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final snippetBgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final snippetTextColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
+
     final isHigh = issueData['severity'] == 'High';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Issue Details',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: textColor,
           ),
         ),
       ),
@@ -37,9 +46,9 @@ class IssueDetailsScreen extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+              border: Border.all(color: dividerColor, width: 1.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,17 +60,17 @@ class IssueDetailsScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         issueData['title'],
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: textColor,
                         ),
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isHigh ? const Color(0xFFFEF2F2) : const Color(0xFFFEF3C7),
+                        color: isHigh ? const Color(0xFFFEF2F2).withOpacity(isDark ? 0.1 : 1) : const Color(0xFFFEF3C7).withOpacity(isDark ? 0.1 : 1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -69,7 +78,7 @@ class IssueDetailsScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFD97706),
+                          color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
                         ),
                       ),
                     ),
@@ -78,58 +87,58 @@ class IssueDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // File
-                const Text('File', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text('File', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
                   issueData['location'].split(':')[0],
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
                 ),
                 const SizedBox(height: 16),
 
                 // Line
-                const Text('Line', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text('Line', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
                   issueData['line'],
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
                 ),
                 const SizedBox(height: 16),
 
                 // Description
-                const Text('Description', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text('Description', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
                   issueData['description'],
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.4),
+                  style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569), height: 1.4),
                 ),
                 const SizedBox(height: 16),
 
                 // Recommendation
-                const Text('Recommendation', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text('Recommendation', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
                   issueData['recommendation'],
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.4),
+                  style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569), height: 1.4),
                 ),
                 const SizedBox(height: 20),
 
                 // Code Snippet Box
-                const Text('Code Snippet', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text('Code Snippet', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: snippetBgColor,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: dividerColor),
                   ),
                   child: Text(
                     issueData['codeSnippet'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 13,
-                      color: Color(0xFF334155),
+                      color: snippetTextColor,
                       height: 1.5,
                     ),
                   ),
@@ -142,8 +151,8 @@ class IssueDetailsScreen extends StatelessWidget {
 
       // Bottom Navigation Bar
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
         ),
         child: BottomNavigationBar(
           currentIndex: 1, // Issues tab selected
@@ -163,10 +172,10 @@ class IssueDetailsScreen extends StatelessWidget {
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: bgColor,
           elevation: 0,
           selectedItemColor: const Color(0xFF10B981),
-          unselectedItemColor: const Color(0xFF94A3B8),
+          unselectedItemColor: subtitleColor,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [

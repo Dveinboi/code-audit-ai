@@ -95,7 +95,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     separatorBuilder: (context, index) => Divider(color: dividerColor, height: 1),
                     itemBuilder: (context, index) {
                       final item = historyItems[index];
-                      final repoName = item['repo_name'] ?? 'Unknown';
+                      final fullRepoName = item['repo_name'] ?? 'Unknown';
+                      final repoName = fullRepoName.contains('/') ? fullRepoName.split('/').last : fullRepoName;
                       final score = item['latest_score'] ?? 0;
                       final repoId = item['repository_id'] ?? '';
                       final scoreColor = score >= 80 ? const Color(0xFF10B981) : (score >= 50 ? Colors.orange : Colors.red);
@@ -109,17 +110,54 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       }
 
                       return InkWell(
+                        onLongPress: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                title: Text('Delete History', style: TextStyle(color: textColor)),
+                                content: Text('Are you sure you want to delete all history for "$repoName"?', style: TextStyle(color: subtitleColor)),
+                                actions: [
+                                  TextButton(
+                                    child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                    onPressed: () => Navigator.of(context).pop(),
+                                  ),
+                                  TextButton(
+                                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                    onPressed: () async {
+                                      Navigator.of(context).pop();
+                                      try {
+                                        await ApiService.deleteRepository(repoId);
+                                        setState(() {
+                                          _historyFuture = ApiService.getHistorySummary();
+                                        });
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                      }
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => RepositoryDetailScreen(
-                                repoName: repoName,
+                                repoName: fullRepoName,
                                 repositoryId: repoId,
                                 score: score,
                               ),
                             ),
-                          );
+                          ).then((_) {
+                            // Refresh history when coming back
+                            setState(() {
+                              _historyFuture = ApiService.getHistorySummary();
+                            });
+                          });
                         },
                         child: Container(
                           padding: const EdgeInsets.all(16),

@@ -52,7 +52,7 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.repoName,
+          widget.repoName.contains('/') ? widget.repoName.split('/').last : widget.repoName,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -236,6 +236,38 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
                                 border: Border.all(color: borderColor, width: 1.5),
                               ),
                               child: ListTile(
+                                onLongPress: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                        title: Text('Delete Analysis', style: TextStyle(color: textColor)),
+                                        content: Text('Are you sure you want to delete this analysis from $reportFormattedDate?', style: TextStyle(color: subtitleColor)),
+                                        actions: [
+                                          TextButton(
+                                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                                            onPressed: () => Navigator.of(context).pop(),
+                                          ),
+                                          TextButton(
+                                            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                            onPressed: () async {
+                                              Navigator.of(context).pop();
+                                              try {
+                                                await ApiService.deleteReport(report['id']);
+                                                setState(() {
+                                                  _repoFuture = ApiService.getRepositoryHistory(widget.repositoryId);
+                                                });
+                                              } catch (e) {
+                                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
                                 contentPadding: const EdgeInsets.all(16),
                                 leading: SizedBox(
                                   width: 50,

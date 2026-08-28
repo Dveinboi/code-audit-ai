@@ -6,6 +6,9 @@ import '../ai/ai_screen.dart';
 import '../history/history_screen.dart';
 import '../issues/category_issues_screen.dart';
 
+// Global variable to share the latest report data across screens pushed without arguments
+Map<String, dynamic>? globalLatestReportData;
+
 class DashboardScreen extends StatefulWidget {
   final String? jobId;
   final bool isLoggedInWithGithub;
@@ -68,6 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .maybeSingle();
             
         _reportData = reportResponse;
+        globalLatestReportData = reportResponse; // Store globally
         
         // 3. Get Repo Name
         if (reportResponse != null) {
@@ -115,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     if (index == 3) {
       if (widget.isLoggedInWithGithub) {
-        Navigator.pushNamed(context, '/select_repo');
+        Navigator.pushNamed(context, '/select_repo', arguments: true);
       } else {
         Navigator.pushNamed(context, '/add_repo');
       }
@@ -297,7 +301,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.shield_outlined,
                         title: 'Security',
                         score: _reportData?['score_security'],
-                        issues: _reportData?['security_issues'] ?? [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'security' || i['line']?.toString().toLowerCase() == 'security').toList() ?? [],
                         category: 'Security',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -308,7 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.account_tree_outlined,
                         title: 'Quality',
                         score: _reportData?['score_quality'],
-                        issues: _reportData?['quality_issues'] ?? [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'quality' || i['line']?.toString().toLowerCase() == 'quality').toList() ?? [],
                         category: 'Quality',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -319,7 +323,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.speed_outlined,
                         title: 'Performance',
                         score: _reportData?['score_performance'],
-                        issues: [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'performance' || i['line']?.toString().toLowerCase() == 'performance').toList() ?? [],
                         category: 'Performance',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -330,7 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.build_outlined,
                         title: 'Maintainability',
                         score: _reportData?['score_maintainability'],
-                        issues: [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'maintainability' || i['line']?.toString().toLowerCase() == 'maintainability').toList() ?? [],
                         category: 'Maintainability',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -341,7 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.api_outlined,
                         title: 'Dependencies',
                         score: _reportData?['score_dependencies'],
-                        issues: _reportData?['dependency_issues'] ?? [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'dependencies' || i['line']?.toString().toLowerCase() == 'dependencies').toList() ?? [],
                         category: 'Dependencies',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -352,7 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.architecture_outlined,
                         title: 'Architecture',
                         score: _reportData?['score_architecture'],
-                        issues: [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'architecture' || i['line']?.toString().toLowerCase() == 'architecture').toList() ?? [],
                         category: 'Architecture',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -363,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.science_outlined,
                         title: 'Testing',
                         score: _reportData?['score_testing'],
-                        issues: [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'testing' || i['line']?.toString().toLowerCase() == 'testing').toList() ?? [],
                         category: 'Testing',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -374,7 +378,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: Icons.design_services_outlined,
                         title: 'UX / UI',
                         score: _reportData?['score_ux'],
-                        issues: [],
+                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'ux/ui' || i['category']?.toString().toLowerCase() == 'ux' || i['line']?.toString().toLowerCase() == 'ux').toList() ?? [],
                         category: 'UX/UI',
                         cardColor: cardColor,
                         borderColor: borderColor,
@@ -427,8 +431,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFF1E293B), 
-                      foregroundColor: Colors.white,
+                      backgroundColor: isDark ? Colors.white : const Color(0xFF1E293B), 
+                      foregroundColor: isDark ? Colors.black : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

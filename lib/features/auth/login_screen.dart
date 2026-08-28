@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'github_login_webview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget { // Converted to StatefulWidget to handle loading state
   const LoginScreen({Key? key}) : super(key: key);
@@ -23,6 +24,13 @@ class _LoginScreenState extends State<LoginScreen> {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
       final session = data.session;
       final user = session?.user;
+      
+      // Save provider token to SharedPreferences so it persists across app hot-restarts
+      if (session?.providerToken != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('github_provider_token', session!.providerToken!);
+      }
+      
       if (session != null && user != null) {
         try {
           // Force store/update the user in the database every time they log in
@@ -101,8 +109,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF111111) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dividerColor = isDark ? const Color(0xFF334155) : Colors.grey.shade200;
+    final githubButtonColor = isDark ? const Color(0xFF1E293B) : Colors.black;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
@@ -126,21 +141,21 @@ class _LoginScreenState extends State<LoginScreen> {
               const Spacer(),
 
               // Headings
-              const Text(
+              Text(
                 'Welcome back',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Analyze any GitHub repository\nin a few clicks.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF64748B),
+                  color: subtitleColor,
                   height: 1.5,
                 ),
               ),
@@ -154,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                child: ElevatedButton(
                  onPressed: _isLoading ? null : signInWithGitHub, // Calls Supabase auth workflow
                  style: ElevatedButton.styleFrom(
-                   backgroundColor: Colors.black, 
+                   backgroundColor: githubButtonColor, 
                    elevation: 0,
                    shape: RoundedRectangleBorder(
                      borderRadius: BorderRadius.circular(12),
@@ -198,21 +213,21 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+                    child: Divider(color: dividerColor, thickness: 1.5),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
                       'or',
                       style: TextStyle(
-                        color: Color(0xFF94A3B8), 
+                        color: subtitleColor, 
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                   Expanded(
-                    child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+                    child: Divider(color: dividerColor, thickness: 1.5),
                   ),
                 ],
               ),
@@ -228,15 +243,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pushNamed(context, '/add_repo');
                   },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                    side: BorderSide(color: dividerColor, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Paste repository URL',
                     style: TextStyle(
-                      color: Color(0xFF1E293B),
+                      color: textColor,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),

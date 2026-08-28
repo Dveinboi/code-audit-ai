@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../ai/ai_screen.dart'; 
 import '../history/history_screen.dart';
 import 'issue_details_screen.dart';
+import '../dashboard/dashboard_screen.dart'; // To access globalLatestReportData
 
 class IssuesScreen extends StatefulWidget {
   final Map<String, dynamic>? reportData;
@@ -16,6 +17,17 @@ class _IssuesScreenState extends State<IssuesScreen> {
   String _selectedFilter = 'All';
   List<Map<String, dynamic>> _issues = [];
 
+  final List<String> _categories = [
+    'All',
+    'Security',
+    'Quality',
+    'Architecture',
+    'Performance',
+    'Maintainability',
+    'Testing',
+    'UX'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -23,8 +35,9 @@ class _IssuesScreenState extends State<IssuesScreen> {
   }
 
   void _loadIssues() {
-    if (widget.reportData != null && widget.reportData!['detailed_findings'] != null) {
-      final findings = widget.reportData!['detailed_findings'] as List<dynamic>;
+    final reportData = widget.reportData ?? globalLatestReportData;
+    if (reportData != null && reportData['detailed_findings'] != null) {
+      final findings = reportData['detailed_findings'] as List<dynamic>;
       _issues = findings.map((f) {
         final finding = f as Map<String, dynamic>;
         return {
@@ -38,7 +51,6 @@ class _IssuesScreenState extends State<IssuesScreen> {
         };
       }).toList();
     } else {
-      // Fallback if detailed_findings doesn't exist yet (backward compatibility)
       _issues = [
         {
           'title': 'No detailed findings found',
@@ -57,7 +69,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
   Widget build(BuildContext context) {
     final filteredIssues = _selectedFilter == 'All'
         ? _issues
-        : _issues.where((i) => i['severity'] == _selectedFilter || (i['severity'] == 'Critical' && _selectedFilter == 'High')).toList();
+        : _issues.where((i) => i['line'].toString().toLowerCase().contains(_selectedFilter.toLowerCase())).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
@@ -95,17 +107,16 @@ class _IssuesScreenState extends State<IssuesScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
-                children: [
-                  _buildFilterChip('All', '${_issues.length}', isDark, textColor, subtitleColor, cardColor, borderColor),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Critical', '${_issues.where((i) => i['severity'] == 'Critical').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('High', '${_issues.where((i) => i['severity'] == 'High').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Medium', '${_issues.where((i) => i['severity'] == 'Medium').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Low', '${_issues.where((i) => i['severity'] == 'Low').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
-                ],
+                children: _categories.map((cat) {
+                  int count = cat == 'All' 
+                      ? _issues.length 
+                      : _issues.where((i) => i['line'].toString().toLowerCase().contains(cat.toLowerCase())).length;
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: _buildFilterChip(cat, '$count', isDark, textColor, subtitleColor, cardColor, borderColor),
+                  );
+                }).toList(),
               ),
             ),
             const SizedBox(height: 8),
@@ -169,9 +180,9 @@ class _IssuesScreenState extends State<IssuesScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    issue['severity'],
+                                    issue['line'].toString().toUpperCase(), // Display the category here!
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFD97706),
                                     ),
