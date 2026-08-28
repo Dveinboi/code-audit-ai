@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../ai/ai_screen.dart';
 import '../issues/issues_screen.dart';
 import 'repository_detail_screen.dart';
+import '../../services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -12,6 +14,13 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedTab = 'Recent';
+  late Future<List<dynamic>> _historyFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _historyFuture = ApiService.getHistorySummary();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,31 +77,108 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(height: 16),
 
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                children: [
-                  _buildHistoryItem(
-                    repoName: 'facebook/react',
-                    date: 'Analyzed on 20 May 2025, 10:30 AM',
-                    score: 78,
-                    scoreColor: const Color(0xFF10B981),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RepositoryDetailScreen(
-                            repoName: 'facebook/react',
-                            score: 78,
+              child: FutureBuilder<List<dynamic>>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: textColor)));
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(child: Text('No history found.', style: TextStyle(color: subtitleColor)));
+                  }
+
+                  final historyItems = snapshot.data!;
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    itemCount: historyItems.length,
+                    separatorBuilder: (context, index) => Divider(color: dividerColor, height: 1),
+                    itemBuilder: (context, index) {
+                      final item = historyItems[index];
+                      final repoName = item['repo_name'] ?? 'Unknown';
+                      final score = item['latest_score'] ?? 0;
+                      final repoId = item['repository_id'] ?? '';
+                      final scoreColor = score >= 80 ? const Color(0xFF10B981) : (score >= 50 ? Colors.orange : Colors.red);
+                      final String dateStr = item['analyzed_at'] ?? '';
+                      String formattedDate = 'Unknown date';
+                      if (dateStr.isNotEmpty) {
+                        try {
+                          final date = DateTime.parse(dateStr).toLocal();
+                          formattedDate = 'Analyzed on ${DateFormat('dd MMM yyyy, hh:mm a').format(date)}';
+                        } catch (e) {}
+                      }
+
+                      return InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RepositoryDetailScreen(
+                                repoName: repoName,
+                                repositoryId: repoId,
+                                score: score,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: borderColor, width: 1.5),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.folder,
+                                  color: Colors.blue,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      repoName,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${historyItems.length} Analyses', // You can change this to a real count if you group differently
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: subtitleColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                                color: subtitleColor,
+                              ),
+                            ],
                           ),
                         ),
                       );
                     },
-                    textColor: textColor,
-                    subtitleColor: subtitleColor,
-                    dividerColor: dividerColor,
-                  ),
-                  Divider(color: dividerColor, height: 1),
-                ],
+                  );
+                },
               ),
             ),
           ],

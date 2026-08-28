@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import '../ai/ai_screen.dart';
 import '../issues/issues_screen.dart';
-import 'history_screen.dart'; 
+import '../dashboard/dashboard_screen.dart';
+import 'history_screen.dart';
+import '../../services/api_service.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 class RepositoryDetailScreen extends StatefulWidget {
   final String repoName;
+  final String repositoryId;
   final int score;
 
   const RepositoryDetailScreen({
     Key? key,
     required this.repoName,
+    required this.repositoryId,
     required this.score,
   }) : super(key: key);
 
@@ -18,6 +23,13 @@ class RepositoryDetailScreen extends StatefulWidget {
 }
 
 class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
+  late Future<Map<String, dynamic>> _repoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _repoFuture = ApiService.getRepositoryHistory(widget.repositoryId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,172 +67,237 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor, width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Score Trend',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: 150,
-                      width: double.infinity,
-                      child: CustomPaint(
-                        painter: _TrendChartPainter(gridColor: dividerColor, labelColor: subtitleColor),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _repoFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: textColor)));
+            } else if (!snapshot.hasData || snapshot.data!['reports'] == null || snapshot.data!['reports'].isEmpty) {
+              return Center(child: Text('No history found.', style: TextStyle(color: subtitleColor)));
+            }
 
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor, width: 1.5),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+            final reports = List<dynamic>.from(snapshot.data!['reports']);
+            final latestReport = reports.last; // Because it was sorted ascending in backend
+
+            final String latestDateStr = latestReport['created_at'] ?? '';
+            String latestFormattedDate = 'Unknown date';
+            if (latestDateStr.isNotEmpty) {
+              try {
+                final date = DateTime.parse(latestDateStr).toLocal();
+                latestFormattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(date);
+              } catch (e) {}
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1.5),
+                    ),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Latest Analysis',
+                          'Score Trend',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: textColor,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '20 May 2025, 10:30 AM',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: subtitleColor,
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 150,
+                          width: double.infinity,
+                          child: CustomPaint(
+                            painter: _DynamicTrendChartPainter(
+                              gridColor: dividerColor,
+                              labelColor: subtitleColor,
+                              reports: reports,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
+                  ),
+                  const SizedBox(height: 16),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1.5),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Latest Analysis',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              latestFormattedDate,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: subtitleColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '${latestReport['overall_score']}',
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF10B981),
+                              ),
+                            ),
+                            Text(
+                              ' /100',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: subtitleColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${widget.score}',
-                          style: const TextStyle(
-                            fontSize: 32,
+                          'Past Analyses',
+                          style: TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF10B981),
+                            color: textColor,
                           ),
                         ),
-                        Text(
-                          ' /100',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: subtitleColor,
-                          ),
+                        const SizedBox(height: 12),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: reports.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            // Reverse order for the list to show newest first
+                            final report = reports[reports.length - 1 - index];
+                            String reportDateStr = report['created_at'] ?? '';
+                            String reportFormattedDate = '';
+                            if (reportDateStr.isNotEmpty) {
+                              try {
+                                final date = DateTime.parse(reportDateStr).toLocal();
+                                reportFormattedDate = 'Analyzed on ${DateFormat('dd MMM yyyy, hh:mm a').format(date)}';
+                              } catch (e) {}
+                            }
+                            final sc = report['overall_score'] ?? 0;
+                            final itemScoreColor = sc >= 80 ? const Color(0xFF10B981) : (sc >= 50 ? Colors.orange : Colors.red);
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: borderColor, width: 1.5),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.all(16),
+                                leading: SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      CircularProgressIndicator(
+                                        value: sc / 100,
+                                        backgroundColor: itemScoreColor.withOpacity(0.2),
+                                        valueColor: AlwaysStoppedAnimation<Color>(itemScoreColor),
+                                        strokeWidth: 4,
+                                      ),
+                                      Text(
+                                        sc.toString(),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                title: Text(
+                                  widget.repoName,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  reportFormattedDate,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: subtitleColor,
+                                  ),
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => DashboardScreen(
+                                        jobId: report['job_id'],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor, width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Report Summary',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'The repository maintains a healthy overall structure. Some security vulnerabilities were detected in outdated dependencies. It is recommended to update NPM packages and review the high-severity alerts identified during the latest code scan.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              InkWell(
-                onTap: () {
-                  Navigator.popUntil(context, ModalRoute.withName('/dashboard'));
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: borderColor, width: 1.5),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'View Full Report',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: subtitleColor,
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
-
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: dividerColor, width: 1.5)),
@@ -260,14 +337,17 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
   }
 }
 
-class _TrendChartPainter extends CustomPainter {
+class _DynamicTrendChartPainter extends CustomPainter {
   final Color gridColor;
   final Color labelColor;
+  final List<dynamic> reports;
 
-  _TrendChartPainter({required this.gridColor, required this.labelColor});
+  _DynamicTrendChartPainter({required this.gridColor, required this.labelColor, required this.reports});
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (reports.isEmpty) return;
+
     final Paint linePaint = Paint()
       ..color = const Color(0xFF3B82F6)
       ..strokeWidth = 2.5
@@ -302,32 +382,48 @@ class _TrendChartPainter extends CustomPainter {
     drawText('50', Offset(8, size.height / 2 - 6));
     drawText('0', Offset(16, size.height - 6));
 
-    final List<Offset> points = [
-      Offset(40, size.height * 0.7),
-      Offset(size.width * 0.35, size.height * 0.4),
-      Offset(size.width * 0.55, size.height * 0.45),
-      Offset(size.width * 0.75, size.height * 0.2),
-      Offset(size.width * 0.95, size.height * 0.05),
-    ];
-
-    final path = Path()..moveTo(points[0].dx, points[0].dy);
-    for (int i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
+    // Calculate dynamic points based on report scores
+    final List<Offset> points = [];
+    final int count = reports.length;
+    
+    for (int i = 0; i < count; i++) {
+      final score = (reports[i]['overall_score'] ?? 0).toDouble();
+      
+      // Calculate X: spaced evenly across width (starting after y-axis labels)
+      final double startX = 40.0;
+      final double widthRemaining = size.width - startX;
+      final double x = count <= 1 ? size.width / 2 : startX + (widthRemaining / (count - 1)) * i;
+      
+      // Calculate Y: mapped inverted to height (100 = 0, 0 = height)
+      final double y = size.height - (score / 100.0) * size.height;
+      
+      points.add(Offset(x, y));
     }
-    canvas.drawPath(path, linePaint);
 
-    for (var point in points) {
-      canvas.drawCircle(point, 5, circleFillPaint);
-      canvas.drawCircle(point, 5, circleBorderPaint);
+    if (points.length > 1) {
+      final path = Path()..moveTo(points[0].dx, points[0].dy);
+      for (int i = 1; i < points.length; i++) {
+        path.lineTo(points[i].dx, points[i].dy);
+      }
+      canvas.drawPath(path, linePaint);
     }
 
-    drawText('Apr 20', Offset(30, size.height + 10));
-    drawText('Apr 27', Offset(size.width * 0.25, size.height + 10));
-    drawText('May 04', Offset(size.width * 0.45, size.height + 10));
-    drawText('May 11', Offset(size.width * 0.65, size.height + 10));
-    drawText('May 20', Offset(size.width * 0.85, size.height + 10));
+    for (int i = 0; i < points.length; i++) {
+      canvas.drawCircle(points[i], 5, circleFillPaint);
+      canvas.drawCircle(points[i], 5, circleBorderPaint);
+      
+      // Draw dates
+      String dateStr = reports[i]['created_at'] ?? '';
+      if (dateStr.isNotEmpty) {
+        try {
+           final date = DateTime.parse(dateStr).toLocal();
+           final formattedDate = DateFormat('MMM dd').format(date);
+           drawText(formattedDate, Offset(points[i].dx - 15, size.height + 10));
+        } catch(e) {}
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

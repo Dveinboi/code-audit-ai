@@ -57,9 +57,15 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
     try {
       final session = Supabase.instance.client.auth.currentSession;
       final githubToken = session?.providerToken;
+      final userId = session?.user.id;
+      final supabaseToken = session?.accessToken;
 
       if (githubToken == null) {
         throw Exception('GitHub token not found. Please log in again.');
+      }
+      
+      if (userId == null || supabaseToken == null) {
+        throw Exception('User authentication not found. Please log in again.');
       }
 
       // Use your computer's local IP for physical device testing
@@ -71,6 +77,8 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
         body: jsonEncode({
           'repo_url': _urlController.text,
           'github_token': githubToken,
+          'user_id': userId,
+          'supabase_token': supabaseToken,
           'is_private': true, // Simplified for now
           'security': _securityEnabled,
           'quality': _qualityEnabled,

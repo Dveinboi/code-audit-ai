@@ -106,7 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _onBottomNavTapped(int index) {
     if (index == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const IssuesScreen()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: _reportData)));
       return;
     }
     if (index == 2) {
@@ -130,9 +130,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Color _getScoreColor(int score) {
-    if (score >= 80) return const Color(0xFF10B981); // Green
-    if (score >= 60) return const Color(0xFFF59E0B); // Orange
+  Color _getScoreColor(int? score) {
+    if (score == null) return Colors.grey;
+    if (score >= 90) return const Color(0xFF10B981); // Emerald
+    if (score >= 70) return const Color(0xFFF59E0B); // Amber
     return const Color(0xFFEF4444); // Red
   }
 
@@ -260,12 +261,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                Text(
-                  _getScoreRating(overallScore),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scoreColor,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (_reportData?['quality_gate'] == 'FAIL' || _reportData?['quality_gate'] == 'CRITICAL') 
+                        ? Colors.red.withOpacity(0.1) 
+                        : Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: (_reportData?['quality_gate'] == 'FAIL' || _reportData?['quality_gate'] == 'CRITICAL') 
+                        ? Colors.red.withOpacity(0.5) 
+                        : Colors.green.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Text(
+                    'QUALITY GATE: ${_reportData?['quality_gate'] ?? 'UNKNOWN'}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: (_reportData?['quality_gate'] == 'FAIL' || _reportData?['quality_gate'] == 'CRITICAL') 
+                        ? Colors.red 
+                        : Colors.green,
+                    ),
                   ),
                 ),
 
@@ -279,7 +296,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMetricCard(
                         icon: Icons.shield_outlined,
                         title: 'Security',
-                        score: _reportData?['score_security'] ?? 0,
+                        score: _reportData?['score_security'],
                         issues: _reportData?['security_issues'] ?? [],
                         category: 'Security',
                         cardColor: cardColor,
@@ -290,7 +307,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMetricCard(
                         icon: Icons.account_tree_outlined,
                         title: 'Quality',
-                        score: _reportData?['score_quality'] ?? 0,
+                        score: _reportData?['score_quality'],
                         issues: _reportData?['quality_issues'] ?? [],
                         category: 'Quality',
                         cardColor: cardColor,
@@ -301,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMetricCard(
                         icon: Icons.speed_outlined,
                         title: 'Performance',
-                        score: _reportData?['score_performance'] ?? 0,
+                        score: _reportData?['score_performance'],
                         issues: [],
                         category: 'Performance',
                         cardColor: cardColor,
@@ -312,7 +329,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMetricCard(
                         icon: Icons.build_outlined,
                         title: 'Maintainability',
-                        score: _reportData?['score_maintainability'] ?? 0,
+                        score: _reportData?['score_maintainability'],
                         issues: [],
                         category: 'Maintainability',
                         cardColor: cardColor,
@@ -321,9 +338,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(width: 12),
                       _buildMetricCard(
-                        icon: Icons.extension_outlined,
-                        title: 'Deps',
-                        score: _reportData?['score_dependencies'] ?? 0,
+                        icon: Icons.api_outlined,
+                        title: 'Dependencies',
+                        score: _reportData?['score_dependencies'],
                         issues: _reportData?['dependency_issues'] ?? [],
                         category: 'Dependencies',
                         cardColor: cardColor,
@@ -334,7 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMetricCard(
                         icon: Icons.architecture_outlined,
                         title: 'Architecture',
-                        score: _reportData?['score_architecture'] ?? 0,
+                        score: _reportData?['score_architecture'],
                         issues: [],
                         category: 'Architecture',
                         cardColor: cardColor,
@@ -345,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMetricCard(
                         icon: Icons.science_outlined,
                         title: 'Testing',
-                        score: _reportData?['score_testing'] ?? 0,
+                        score: _reportData?['score_testing'],
                         issues: [],
                         category: 'Testing',
                         cardColor: cardColor,
@@ -354,9 +371,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(width: 12),
                       _buildMetricCard(
-                        icon: Icons.brush_outlined,
-                        title: 'UX/UI',
-                        score: _reportData?['score_ux'] ?? 0,
+                        icon: Icons.design_services_outlined,
+                        title: 'UX / UI',
+                        score: _reportData?['score_ux'],
                         issues: [],
                         category: 'UX/UI',
                         cardColor: cardColor,
@@ -489,7 +506,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildMetricCard({
     required IconData icon,
     required String title,
-    required int score,
+    required int? score,
     required List<dynamic> issues,
     required String category,
     required Color cardColor,
@@ -537,14 +554,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
             ),
-            Text(
-              score.toString(),
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: scoreColor,
+            if (score == null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'N/A',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+              )
+            else
+              Text(
+                score.toString(),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: scoreColor,
+                ),
               ),
-            ),
           ],
         ),
       ),

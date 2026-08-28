@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../ai/ai_screen.dart'; 
-import '../history/history_screen.dart'; // Added History screen import
+import '../history/history_screen.dart';
 import 'issue_details_screen.dart';
 
 class IssuesScreen extends StatefulWidget {
-  const IssuesScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic>? reportData;
+
+  const IssuesScreen({Key? key, this.reportData}) : super(key: key);
 
   @override
   State<IssuesScreen> createState() => _IssuesScreenState();
@@ -12,52 +14,50 @@ class IssuesScreen extends StatefulWidget {
 
 class _IssuesScreenState extends State<IssuesScreen> {
   String _selectedFilter = 'All';
+  List<Map<String, dynamic>> _issues = [];
 
-  // Dummy issues list
-  final List<Map<String, dynamic>> _issues = [
-    {
-      'title': 'Hardcoded API Key',
-      'severity': 'High',
-      'location': 'src/config/api.ts:12',
-      'description': 'Potential hardcoded API key found in the code.',
-      'recommendation': 'Move API keys to environment variables (.env).',
-      'codeSnippet': 'const apiKey = "sk_live_958173958173";\nexport default apiKey;',
-      'line': '12',
-    },
-    {
-      'title': 'SQL Injection Risk',
-      'severity': 'High',
-      'location': 'src/user/query.py:87',
-      'description': 'User input is concatenated into SQL query, which can lead to SQL injection.',
-      'recommendation': 'Use parameterized queries or ORM to prevent SQL injection.',
-      'codeSnippet': '85  query = "SELECT * FROM users"\n86  WHERE id = " + user_id\n87  cursor.execute(query)',
-      'line': '87',
-    },
-    {
-      'title': 'Outdated Dependency',
-      'severity': 'Medium',
-      'location': 'Package: lodash',
-      'description': 'Update lodash to v4.17.21 or higher.',
-      'recommendation': 'Run npm install lodash@latest to patch security vulnerabilities.',
-      'codeSnippet': '"dependencies": {\n  "lodash": "^4.17.15"\n}',
-      'line': '4',
-    },
-    {
-      'title': 'Missing Input Validation',
-      'severity': 'Medium',
-      'location': 'src/auth/login.js:45',
-      'description': 'User input is not validated.',
-      'recommendation': 'Implement schema validation using Joi or express-validator.',
-      'codeSnippet': 'const username = req.body.username;\nauthenticate(username);',
-      'line': '45',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadIssues();
+  }
+
+  void _loadIssues() {
+    if (widget.reportData != null && widget.reportData!['detailed_findings'] != null) {
+      final findings = widget.reportData!['detailed_findings'] as List<dynamic>;
+      _issues = findings.map((f) {
+        final finding = f as Map<String, dynamic>;
+        return {
+          'title': finding['title'] ?? 'Unknown Issue',
+          'severity': finding['severity'] ?? 'Medium',
+          'location': finding['evidence'] ?? 'Unknown Location',
+          'description': finding['impact'] ?? 'No impact specified',
+          'recommendation': finding['recommendation'] ?? 'No recommendation',
+          'codeSnippet': finding['priority'] != null ? 'Priority: ${finding['priority']}\nConfidence: ${finding['confidence']}' : 'No code snippet provided.',
+          'line': finding['category'] ?? 'General',
+        };
+      }).toList();
+    } else {
+      // Fallback if detailed_findings doesn't exist yet (backward compatibility)
+      _issues = [
+        {
+          'title': 'No detailed findings found',
+          'severity': 'Informational',
+          'location': 'N/A',
+          'description': 'This report was generated before the evidence-based analysis engine was deployed.',
+          'recommendation': 'Re-analyze the repository to view detailed findings.',
+          'codeSnippet': '',
+          'line': '',
+        }
+      ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final filteredIssues = _selectedFilter == 'All'
         ? _issues
-        : _issues.where((i) => i['severity'] == _selectedFilter).toList();
+        : _issues.where((i) => i['severity'] == _selectedFilter || (i['severity'] == 'Critical' && _selectedFilter == 'High')).toList();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
@@ -80,7 +80,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
           },
         ),
         title: Text(
-          'Issues',
+          'Detailed Findings',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -96,13 +96,15 @@ class _IssuesScreenState extends State<IssuesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
-                  _buildFilterChip('All', '24', isDark, textColor, subtitleColor, cardColor, borderColor),
+                  _buildFilterChip('All', '${_issues.length}', isDark, textColor, subtitleColor, cardColor, borderColor),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Critical', '2', isDark, textColor, subtitleColor, cardColor, borderColor),
+                  _buildFilterChip('Critical', '${_issues.where((i) => i['severity'] == 'Critical').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
                   const SizedBox(width: 8),
-                  _buildFilterChip('High', '6', isDark, textColor, subtitleColor, cardColor, borderColor),
+                  _buildFilterChip('High', '${_issues.where((i) => i['severity'] == 'High').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Medium', '8', isDark, textColor, subtitleColor, cardColor, borderColor),
+                  _buildFilterChip('Medium', '${_issues.where((i) => i['severity'] == 'Medium').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Low', '${_issues.where((i) => i['severity'] == 'Low').length}', isDark, textColor, subtitleColor, cardColor, borderColor),
                 ],
               ),
             ),
@@ -113,7 +115,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
                 itemCount: filteredIssues.length,
                 itemBuilder: (context, index) {
                   final issue = filteredIssues[index];
-                  final isHigh = issue['severity'] == 'High';
+                  final isHigh = issue['severity'] == 'High' || issue['severity'] == 'Critical';
                   
                   return Container(
                     margin: const EdgeInsets.only(bottom: 16),
@@ -140,19 +142,25 @@ class _IssuesScreenState extends State<IssuesScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFFEF4444)),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      issue['title'],
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: textColor,
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.warning_amber_rounded, size: 18, color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFD97706)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          issue['title'],
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: textColor,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -173,11 +181,13 @@ class _IssuesScreenState extends State<IssuesScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'File: ${issue['location']}',
+                              'Evidence: ${issue['location']}',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: subtitleColor,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 6),
                             Text(
@@ -186,6 +196,8 @@ class _IssuesScreenState extends State<IssuesScreen> {
                                 fontSize: 14,
                                 color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
