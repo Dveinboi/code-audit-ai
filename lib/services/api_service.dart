@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ApiService {
@@ -94,6 +96,127 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error deleting report: $e');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getChatHistory(String jobId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
+      
+      final history = await _supabase.from('ai_chats')
+          .select('role, message, created_at')
+          .eq('job_id', jobId)
+          .eq('user_id', userId)
+          .order('created_at', ascending: true);
+          
+      return List<Map<String, dynamic>>.from(history);
+    } catch (e) {
+      throw Exception('Error fetching chat history: $e');
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getChatSessions() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
+
+      // 1. Get all chats for user to find unique job_ids
+      final chats = await _supabase.from('ai_chats')
+          .select('job_id, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      final uniqueJobs = <String, DateTime>{};
+      for (var chat in chats) {
+        final j = chat['job_id'];
+        if (j != null && !uniqueJobs.containsKey(j)) {
+          uniqueJobs[j] = DateTime.parse(chat['created_at']);
+        }
+      }
+
+      if (uniqueJobs.isEmpty) return [];
+
+      // 2. Get all reports for user to map job_id -> repository_id
+      final reports = await _supabase.from('reports')
+          .select('job_id, repository_id')
+          .eq('user_id', userId);
+
+      final jobToRepoId = <String, String>{};
+      for (var r in reports) {
+        if (r['job_id'] != null && r['repository_id'] != null) {
+          jobToRepoId[r['job_id']] = r['repository_id'];
+        }
+      }
+
+      // 3. Get all repos to map repository_id -> repo_name
+      final repos = await _supabase.from('repositories')
+          .select('id, repo_name');
+
+      final repoIdToName = <String, String>{};
+      for (var r in repos) {
+        repoIdToName[r['id']] = r['repo_name'];
+      }
+
+      // 4. Assemble the final list
+      List<Map<String, dynamic>> sessions = [];
+      for (var entry in uniqueJobs.entries) {
+        final jobId = entry.key;
+        final repoId = jobToRepoId[jobId];
+        final repoName = repoId != null ? (repoIdToName[repoId] ?? 'Unknown Repo') : 'Unknown Repo';
+
+        sessions.add({
+          'job_id': jobId,
+          'repo_name': repoName,
+          'last_active': entry.value,
+        });
+      }
+
+      return sessions;
+    } catch (e) {
+      print('Error fetching chat sessions: $e');
+      return [];
+    }
+  }
+
+  static Stream<String> askAIStream(String jobId, String userMessage) async* {
+    final session = Supabase.instance.client.auth.currentSession;
+    final userId = session?.user.id;
+    final supabaseToken = session?.accessToken;
+
+    if (userId == null || supabaseToken == null) {
+      yield 'Error: User authentication not found. Please log in again.';
+      return;
+    }
+
+    final backendUrl = 'http://192.168.29.207:8000/api/ai/chat'; 
+    
+    final client = http.Client();
+    final request = http.Request('POST', Uri.parse(backendUrl))
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({
+        'job_id': jobId,
+        'message': userMessage,
+        'user_id': userId,
+        'supabase_token': supabaseToken,
+      });
+
+    try {
+      final response = await client.send(request);
+      
+      if (response.statusCode != 200) {
+        final errorString = await response.stream.bytesToString();
+        yield 'Error: Failed to get AI response: $errorString';
+        return;
+      }
+      
+      await for (var chunk in response.stream.transform(utf8.decoder)) {
+        yield chunk;
+      }
+    } catch (e) {
+      yield 'Error asking AI: $e';
+    } finally {
+      client.close();
     }
   }
 }

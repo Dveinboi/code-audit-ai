@@ -114,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
     if (index == 2) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: _reportData)));
       return;
     }
     if (index == 3) {
