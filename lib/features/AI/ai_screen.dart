@@ -148,7 +148,7 @@ class _AiScreenState extends State<AiScreen> {
       return;
     }
     if (index == 3) {
-      Navigator.pushNamed(context, '/add_repo');
+      Navigator.pushNamed(context, '/select_repo', arguments: true);
       return;
     }
     if (index == 4) {

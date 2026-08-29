@@ -59,12 +59,6 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
             color: textColor,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.star_border, color: textColor),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>>(

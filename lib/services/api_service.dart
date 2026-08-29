@@ -13,6 +13,10 @@ class ApiService {
       // Fetch all repositories
       final repos = await _supabase.from('repositories').select('*');
       
+      // Fetch user favorites
+      final favoritesRes = await _supabase.from('user_favorites').select('repository_id').eq('user_id', userId);
+      final favoriteIds = favoritesRes.map((f) => f['repository_id']).toSet();
+
       List<Map<String, dynamic>> results = [];
       for (var repo in repos) {
         // Fetch latest report for this repo and user
@@ -30,6 +34,7 @@ class ApiService {
             'repo_name': repo['repo_name'] ?? repo['repo_url'] ?? 'Unknown',
             'latest_score': latestReport['overall_score'] ?? 0,
             'analyzed_at': latestReport['created_at'] ?? '',
+            'is_favorite': favoriteIds.contains(repo['id']),
           });
         }
       }
@@ -41,6 +46,27 @@ class ApiService {
       throw Exception('Error fetching history from Supabase: $e');
     }
   }
+
+  static Future<void> toggleFavorite(String repositoryId, bool isFavorite) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not logged in');
+
+      if (isFavorite) {
+        await _supabase.from('user_favorites').upsert({
+          'user_id': userId,
+          'repository_id': repositoryId,
+        });
+      } else {
+        await _supabase.from('user_favorites').delete()
+            .eq('user_id', userId)
+            .eq('repository_id', repositoryId);
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+    }
+  }
+
 
   static Future<Map<String, dynamic>> getRepositoryHistory(String repositoryId) async {
     try {

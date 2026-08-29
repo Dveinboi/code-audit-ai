@@ -88,7 +88,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     return Center(child: Text('No history found.', style: TextStyle(color: subtitleColor)));
                   }
 
-                  final historyItems = snapshot.data!;
+                  List<dynamic> historyItems = snapshot.data!;
+                  
+                  if (_selectedTab == 'Recent') {
+                    final today = DateTime.now();
+                    historyItems = historyItems.where((item) {
+                      final dateStr = item['analyzed_at'] ?? '';
+                      if (dateStr.isEmpty) return false;
+                      try {
+                        final date = DateTime.parse(dateStr).toLocal();
+                        return date.year == today.year && date.month == today.month && date.day == today.day;
+                      } catch (e) {
+                        return false;
+                      }
+                    }).toList();
+                  } else if (_selectedTab == 'Favorites') {
+                    historyItems = historyItems.where((item) => item['is_favorite'] == true).toList();
+                  }
+
+                  if (historyItems.isEmpty) {
+                    return Center(child: Text('No $_selectedTab history found.', style: TextStyle(color: subtitleColor)));
+                  }
+
                   return ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
                     itemCount: historyItems.length,
@@ -99,6 +120,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       final repoName = fullRepoName.contains('/') ? fullRepoName.split('/').last : fullRepoName;
                       final score = item['latest_score'] ?? 0;
                       final repoId = item['repository_id'] ?? '';
+                      final isFavorite = item['is_favorite'] == true;
                       final scoreColor = score >= 80 ? const Color(0xFF10B981) : (score >= 50 ? Colors.orange : Colors.red);
                       final String dateStr = item['analyzed_at'] ?? '';
                       String formattedDate = 'Unknown date';
@@ -152,12 +174,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 score: score,
                               ),
                             ),
-                          ).then((_) {
-                            // Refresh history when coming back
-                            setState(() {
-                              _historyFuture = ApiService.getHistorySummary();
-                            });
-                          });
+                          );
                         },
                         child: Container(
                           padding: const EdgeInsets.all(16),
@@ -205,10 +222,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   ],
                                 ),
                               ),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                size: 16,
-                                color: subtitleColor,
+                              IconButton(
+                                icon: Icon(
+                                  isFavorite ? Icons.star : Icons.star_border,
+                                  color: isFavorite ? Colors.amber : subtitleColor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    item['is_favorite'] = !isFavorite;
+                                  });
+                                  ApiService.toggleFavorite(repoId, !isFavorite);
+                                },
                               ),
                             ],
                           ),
@@ -237,7 +261,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             } else if (index == 2) {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
             } else if (index == 3) {
-              Navigator.pushNamed(context, '/select_repo');
+              Navigator.pushNamed(context, '/select_repo', arguments: true);
             } else if (index == 4) {
               // Do nothing
             }

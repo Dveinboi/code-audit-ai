@@ -235,7 +235,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
             } else if (index == 2) {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
             } else if (index == 3) {
-              Navigator.pushNamed(context, '/select_repo');
+              Navigator.pushNamed(context, '/select_repo', arguments: true);
             } else if (index == 4) {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
             }
