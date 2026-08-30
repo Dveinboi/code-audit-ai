@@ -155,7 +155,18 @@ class CategoryIssuesScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => IssueDetailsScreen(issueData: issue),
+                                  builder: (context) {
+                                    final mappedIssue = {
+                                      'title': issue['title'] ?? 'Unknown Issue',
+                                      'severity': issue['severity'] ?? 'Medium',
+                                      'location': issue['evidence'] ?? issue['location'] ?? 'Unknown Location',
+                                      'description': issue['impact'] ?? issue['description'] ?? 'No description specified',
+                                      'recommendation': issue['recommendation'] ?? 'No recommendation',
+                                      'codeSnippet': issue['priority'] != null ? 'Priority: ${issue['priority']}\nConfidence: ${issue['confidence']}' : 'No code snippet provided.',
+                                      'line': issue['category'] ?? issue['line'] ?? 'General',
+                                    };
+                                    return IssueDetailsScreen(issueData: mappedIssue);
+                                  },
                                 ),
                               );
                             },

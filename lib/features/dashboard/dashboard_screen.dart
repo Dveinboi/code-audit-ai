@@ -126,7 +126,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isGuest = Supabase.instance.client.auth.currentSession == null;
     
     if (index == 1) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: _reportData)));
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const IssuesScreen()));
       return;
     }
     if (index == 2) {
@@ -137,7 +137,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           icon: Icons.auto_awesome,
         )));
       } else {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: _reportData)));
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
       }
       return;
     }

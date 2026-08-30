@@ -6,9 +6,7 @@ import 'package:provider/provider.dart';
 import '../../providers/report_provider.dart';
 
 class IssuesScreen extends StatefulWidget {
-  final Map<String, dynamic>? reportData;
-
-  const IssuesScreen({Key? key, this.reportData}) : super(key: key);
+  const IssuesScreen({Key? key}) : super(key: key);
 
   @override
   State<IssuesScreen> createState() => _IssuesScreenState();
@@ -36,7 +34,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
   }
 
   void _loadIssues() {
-    final reportData = widget.reportData ?? context.read<ReportProvider>().reportData;
+    final reportData = context.read<ReportProvider>().reportData;
     if (reportData != null && reportData['detailed_findings'] != null) {
       final findings = reportData['detailed_findings'] as List<dynamic>;
       _issues = findings.map((f) {
@@ -234,7 +232,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
             } else if (index == 1) {
               // Do nothing
             } else if (index == 2) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: widget.reportData ?? context.read<ReportProvider>().reportData)));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AiScreen()));
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo', arguments: true);
             } else if (index == 4) {

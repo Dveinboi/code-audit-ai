@@ -12,47 +12,9 @@ class ApiService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return [];
       
-      // 1. Fetch all repositories
-      final repos = await _supabase.from('repositories').select('*');
+      final response = await _supabase.rpc('get_user_repository_history', params: {'p_user_id': userId});
       
-      // 2. Fetch user favorites
-      final favoritesRes = await _supabase.from('user_favorites').select('repository_id').eq('user_id', userId);
-      final favoriteIds = favoritesRes.map((f) => f['repository_id']).toSet();
-
-      // 3. Fetch ALL reports for the user in ONE network call, ordered by date
-      final allReports = await _supabase.from('reports')
-          .select('repository_id, overall_score, created_at')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      // Group by repository_id to keep only the latest report per repo
-      final latestReports = <String, Map<String, dynamic>>{};
-      for (var report in allReports) {
-        final repoId = report['repository_id'];
-        if (repoId != null && !latestReports.containsKey(repoId)) {
-          latestReports[repoId] = report;
-        }
-      }
-
-      // Assemble final results
-      List<Map<String, dynamic>> results = [];
-      for (var repo in repos) {
-        final repoId = repo['id'];
-        if (latestReports.containsKey(repoId)) {
-          final latestReport = latestReports[repoId]!;
-          results.add({
-            'repository_id': repoId,
-            'repo_name': repo['repo_name'] ?? repo['repo_url'] ?? 'Unknown',
-            'latest_score': latestReport['overall_score'] ?? 0,
-            'analyzed_at': latestReport['created_at'] ?? '',
-            'is_favorite': favoriteIds.contains(repoId),
-          });
-        }
-      }
-      
-      // Sort by most recently analyzed
-      results.sort((a, b) => (b['analyzed_at'] as String).compareTo(a['analyzed_at'] as String));
-      return results;
+      return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       throw Exception('Error fetching history from Supabase: $e');
     }
@@ -108,7 +70,8 @@ class ApiService {
     }
 
     // Use dotenv for the backend URL
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/analyze'; 
 
     final response = await http.post(
@@ -146,7 +109,8 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>?> getReportByJobId(String jobId) async {
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/report/$jobId';
     try {
       final response = await http.get(Uri.parse(backendUrl));
@@ -297,7 +261,8 @@ class ApiService {
   }
 
   static Future<void> linkGuestAccount(String guestId, String realUserId) async {
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/link-guest';
     
     try {
@@ -332,7 +297,8 @@ class ApiService {
       return;
     }
 
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final baseUrl = dotenv.env['API_BASE_URL'];
+    if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/ai/chat'; 
     
     final client = http.Client();

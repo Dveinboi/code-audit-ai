@@ -90,7 +90,9 @@ class IssueDetailsScreen extends StatelessWidget {
                 Text('File', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
-                  issueData['location'].split(':')[0],
+                  (issueData['location'] ?? '').toString().contains(':') 
+                      ? issueData['location'].toString().split(':')[0] 
+                      : (issueData['location']?.toString() ?? 'Unknown'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
                 ),
                 const SizedBox(height: 16),

@@ -7,9 +7,7 @@ import 'package:provider/provider.dart';
 import '../../providers/report_provider.dart';
 
 class AiScreen extends StatefulWidget {
-  final Map<String, dynamic>? reportData;
-
-  const AiScreen({Key? key, this.reportData}) : super(key: key);
+  const AiScreen({Key? key}) : super(key: key);
 
   @override
   State<AiScreen> createState() => _AiScreenState();
@@ -27,7 +25,7 @@ class _AiScreenState extends State<AiScreen> {
   @override
   void initState() {
     super.initState();
-    final data = widget.reportData ?? context.read<ReportProvider>().reportData;
+    final data = context.read<ReportProvider>().reportData;
     _jobId = data?['job_id'];
     _loadHistory();
   }
@@ -37,7 +35,7 @@ class _AiScreenState extends State<AiScreen> {
       setState(() {
         _isInitializing = false;
         _messages = [
-          {'role': 'ai', 'message': 'No project loaded. Please select a repository from the dashboard first.'}
+          {'role': 'ai', 'message': 'No repo analyzed. Please select a repository from the dashboard first.'}
         ];
       });
       return;
@@ -145,7 +143,7 @@ class _AiScreenState extends State<AiScreen> {
       return;
     }
     if (index == 1) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: widget.reportData ?? context.read<ReportProvider>().reportData)));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const IssuesScreen()));
       return;
     }
     if (index == 3) {

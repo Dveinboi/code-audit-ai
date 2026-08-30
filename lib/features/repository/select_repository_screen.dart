@@ -149,147 +149,175 @@ class _SelectRepositoryScreenState extends State<SelectRepositoryScreen> {
                     );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
-                      child: Text(
-                        'No repositories found.',
-                        style: TextStyle(color: subtitleColor),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'No repositories found.',
+                            style: TextStyle(color: subtitleColor, fontSize: 16),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pushReplacementNamed(context, '/dashboard');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Continue to Dashboard',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }
 
                   final repos = snapshot.data!;
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: repos.length,
-                    itemBuilder: (context, index) {
-                      final repo = repos[index];
-                      final isSelected = _selectedIndex == index;
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: repos.length,
+                          itemBuilder: (context, index) {
+                            final repo = repos[index];
+                            final isSelected = _selectedIndex == index;
 
-                      final repoName = repo['name'] ?? 'Unnamed';
-                      final repoUrl = repo['html_url'] ?? '';
-                      final isPrivate = repo['private'] ?? false;
-                      final language = repo['language'] ?? 'Mixed';
+                            final repoName = repo['name'] ?? 'Unnamed';
+                            final repoUrl = repo['html_url'] ?? '';
+                            final isPrivate = repo['private'] ?? false;
+                            final language = repo['language'] ?? 'Mixed';
 
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedIndex = index;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(bottom: 16.0),
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            color: isSelected 
-                                ? (isDark ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFECFDF5))
-                                : cardColor,
-                            border: Border.all(
-                              color: isSelected ? const Color(0xFF10B981) : borderColor,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.folder_outlined,
-                                color: isSelected ? const Color(0xFF10B981) : subtitleColor,
-                                size: 28,
-                              ),
-                              const SizedBox(width: 16),
-                              
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedIndex = index;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                margin: const EdgeInsets.only(bottom: 16.0),
+                                padding: const EdgeInsets.all(16.0),
+                                decoration: BoxDecoration(
+                                  color: isSelected 
+                                      ? (isDark ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFECFDF5))
+                                      : cardColor,
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFF10B981) : borderColor,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      repoName,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isSelected 
-                                            ? (isDark ? const Color(0xFF34D399) : const Color(0xFF065F46))
-                                            : textColor,
-                                      ),
+                                    Icon(
+                                      Icons.folder_outlined,
+                                      color: isSelected ? const Color(0xFF10B981) : subtitleColor,
+                                      size: 28,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        _buildBadge(isPrivate ? 'Private' : 'Public', isDark, subtitleColor),
-                                        const SizedBox(width: 8),
-                                        _buildBadge(language, isDark, subtitleColor),
-                                      ],
+                                    const SizedBox(width: 16),
+                                    
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            repoName,
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSelected 
+                                                  ? (isDark ? const Color(0xFF34D399) : const Color(0xFF065F46))
+                                                  : textColor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              _buildBadge(isPrivate ? 'Private' : 'Public', isDark, subtitleColor),
+                                              const SizedBox(width: 8),
+                                              _buildBadge(language, isDark, subtitleColor),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: ElevatedButton(
+                                onPressed: _selectedIndex != null
+                                    ? () {
+                                        final selectedRepo = repos[_selectedIndex!];
+                                        final selectedUrl = selectedRepo['html_url'];
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/add_repo',
+                                          arguments: selectedUrl,
+                                        );
+                                      }
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.black,
+                                  disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Confirm Selection',
+                                  style: TextStyle(
+                                    color: _selectedIndex != null ? Colors.white : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (!showNavbar) ...[
+                              const SizedBox(height: 16),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushReplacementNamed(context, '/dashboard');
+                                },
+                                child: Text(
+                                  'Skip for now',
+                                  style: TextStyle(
+                                    color: subtitleColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   );
                 },
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _selectedIndex != null
-                          ? () {
-                              final selectedRepo = _reposCache[_selectedIndex!];
-                              final selectedUrl = selectedRepo['html_url'];
-                              Navigator.pushNamed(
-                                context,
-                                '/add_repo',
-                                arguments: selectedUrl,
-                              );
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.black,
-                        disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Confirm Selection',
-                        style: TextStyle(
-                          color: _selectedIndex != null ? Colors.white : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (!showNavbar) ...[
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/dashboard');
-                      },
-                      child: Text(
-                        'Skip for now',
-                        style: TextStyle(
-                          color: subtitleColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
               ),
             ),
           ],
