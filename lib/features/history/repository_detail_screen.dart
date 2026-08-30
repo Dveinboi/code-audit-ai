@@ -305,6 +305,7 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
+                                      settings: const RouteSettings(name: '/dashboard'),
                                       builder: (context) => DashboardScreen(
                                         jobId: report['job_id'],
                                       ),

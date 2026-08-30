@@ -5,6 +5,8 @@ import '../profile/profile_screen.dart';
 import '../ai/ai_screen.dart';
 import '../history/history_screen.dart';
 import '../issues/category_issues_screen.dart';
+import '../../services/api_service.dart';
+import '../../services/pdf_report_service.dart';
 
 // Global variable to share the latest report data across screens pushed without arguments
 Map<String, dynamic>? globalLatestReportData;
@@ -29,6 +31,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = true;
   String _repoName = 'Loading...';
   String _avatarUrl = '';
+  String? _repoUrl;
+  bool _isReanalyzing = false;
+  bool _isGeneratingPdf = false;
   
   Map<String, dynamic>? _reportData;
 
@@ -85,6 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             
             if (repoResponse != null) {
               _repoName = repoResponse['repo_name'] ?? 'Unknown Repository';
+              _repoUrl = repoResponse['repo_url'];
             } else {
               _repoName = 'Repository not found';
             }
@@ -429,7 +435,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: _isGeneratingPdf || _reportData == null ? null : () async {
+                      setState(() {
+                        _isGeneratingPdf = true;
+                      });
+                      try {
+                        await PdfReportService.generateAndSaveReport(_reportData, _repoName);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('PDF generated successfully!')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error generating PDF: $e')),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isGeneratingPdf = false;
+                          });
+                        }
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDark ? Colors.white : const Color(0xFF1E293B), 
                       foregroundColor: isDark ? Colors.black : Colors.white,
@@ -438,10 +468,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
-                    label: const Text(
-                      'Generate PDF Report',
-                      style: TextStyle(
+                    icon: _isGeneratingPdf 
+                      ? SizedBox(
+                          width: 20, 
+                          height: 20, 
+                          child: CircularProgressIndicator(strokeWidth: 2, color: isDark ? Colors.black : Colors.white)
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                    label: Text(
+                      _isGeneratingPdf ? 'Generating...' : 'Generate PDF Report',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _isReanalyzing || _repoUrl == null ? null : () async {
+                      setState(() {
+                        _isReanalyzing = true;
+                      });
+                      try {
+                        final jobId = await ApiService.startAnalysis(_repoUrl!);
+                        if (mounted) {
+                          Navigator.pushNamed(
+                            context,
+                            '/analyzing',
+                            arguments: jobId,
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e')),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isReanalyzing = false;
+                          });
+                        }
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white : const Color(0xFF1E293B),
+                      side: BorderSide(color: borderColor, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: _isReanalyzing 
+                      ? const SizedBox(
+                          width: 20, 
+                          height: 20, 
+                          child: CircularProgressIndicator(strokeWidth: 2)
+                        )
+                      : const Icon(Icons.refresh, size: 20),
+                    label: Text(
+                      _isReanalyzing ? 'Analyzing...' : 'Re-Analyze Latest Code',
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),

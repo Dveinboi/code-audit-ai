@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static final _supabase = Supabase.instance.client;
@@ -68,6 +69,54 @@ class ApiService {
   }
 
 
+  static Future<String> startAnalysis(String repoUrl) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    String? githubToken = session?.providerToken;
+    
+    if (githubToken == null) {
+      final prefs = await SharedPreferences.getInstance();
+      githubToken = prefs.getString('github_provider_token');
+    }
+
+    final userId = session?.user.id;
+    final supabaseToken = session?.accessToken;
+
+    if (githubToken == null) {
+      throw Exception('GitHub token not found. Please log in again.');
+    }
+    
+    if (userId == null || supabaseToken == null) {
+      throw Exception('User authentication not found. Please log in again.');
+    }
+
+    // Use your computer's local IP for physical device testing
+    final backendUrl = 'http://192.168.29.207:8000/api/analyze'; 
+
+    final response = await http.post(
+      Uri.parse(backendUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'repo_url': repoUrl,
+        'github_token': githubToken,
+        'user_id': userId,
+        'supabase_token': supabaseToken,
+        'is_private': true, 
+        'security': true,
+        'quality': true,
+        'performance': true,
+        'maintainability': true,
+        'dependencies': true,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['job_id'];
+    } else {
+      throw Exception('Failed to start analysis: ${response.body}');
+    }
+  }
+
   static Future<Map<String, dynamic>> getRepositoryHistory(String repositoryId) async {
     try {
       final userId = _supabase.auth.currentUser?.id;
@@ -76,7 +125,7 @@ class ApiService {
       final repo = await _supabase.from('repositories').select('*').eq('id', repositoryId).single();
       
       final reports = await _supabase.from('reports')
-          .select('id, overall_score, score_security, score_quality, score_performance, created_at')
+          .select('id, job_id, overall_score, score_security, score_quality, score_performance, created_at')
           .eq('repository_id', repositoryId)
           .eq('user_id', userId)
           .order('created_at', ascending: true);

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddRepositoryScreen extends StatefulWidget {
   const AddRepositoryScreen({Key? key}) : super(key: key);
@@ -56,9 +57,14 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
 
     try {
       final session = Supabase.instance.client.auth.currentSession;
-      final githubToken = session?.providerToken;
+      String? githubToken = session?.providerToken;
       final userId = session?.user.id;
       final supabaseToken = session?.accessToken;
+
+      if (githubToken == null) {
+        final prefs = await SharedPreferences.getInstance();
+        githubToken = prefs.getString('github_provider_token');
+      }
 
       if (githubToken == null) {
         throw Exception('GitHub token not found. Please log in again.');

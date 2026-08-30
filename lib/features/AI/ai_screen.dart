@@ -144,7 +144,7 @@ class _AiScreenState extends State<AiScreen> {
       return;
     }
     if (index == 1) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: widget.reportData)));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: widget.reportData ?? globalLatestReportData)));
       return;
     }
     if (index == 3) {

@@ -233,11 +233,11 @@ class _IssuesScreenState extends State<IssuesScreen> {
             } else if (index == 1) {
               // Do nothing
             } else if (index == 2) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AiScreen()));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: widget.reportData ?? globalLatestReportData)));
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo', arguments: true);
             } else if (index == 4) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
             }
           },
           type: BottomNavigationBarType.fixed,
