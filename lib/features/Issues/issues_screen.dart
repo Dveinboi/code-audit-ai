@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../ai/ai_screen.dart'; 
 import '../history/history_screen.dart';
 import 'issue_details_screen.dart';
-import '../dashboard/dashboard_screen.dart'; // To access globalLatestReportData
+import 'package:provider/provider.dart';
+import '../../providers/report_provider.dart';
 
 class IssuesScreen extends StatefulWidget {
   final Map<String, dynamic>? reportData;
@@ -35,7 +36,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
   }
 
   void _loadIssues() {
-    final reportData = widget.reportData ?? globalLatestReportData;
+    final reportData = widget.reportData ?? context.read<ReportProvider>().reportData;
     if (reportData != null && reportData['detailed_findings'] != null) {
       final findings = reportData['detailed_findings'] as List<dynamic>;
       _issues = findings.map((f) {
@@ -233,7 +234,7 @@ class _IssuesScreenState extends State<IssuesScreen> {
             } else if (index == 1) {
               // Do nothing
             } else if (index == 2) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: widget.reportData ?? globalLatestReportData)));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: widget.reportData ?? context.read<ReportProvider>().reportData)));
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo', arguments: true);
             } else if (index == 4) {

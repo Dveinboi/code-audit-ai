@@ -3,7 +3,8 @@ import '../../services/api_service.dart';
 import '../issues/issues_screen.dart';
 import '../history/history_screen.dart';
 
-import '../dashboard/dashboard_screen.dart'; // To access globalLatestReportData
+import 'package:provider/provider.dart';
+import '../../providers/report_provider.dart';
 
 class AiScreen extends StatefulWidget {
   final Map<String, dynamic>? reportData;
@@ -26,7 +27,7 @@ class _AiScreenState extends State<AiScreen> {
   @override
   void initState() {
     super.initState();
-    final data = widget.reportData ?? globalLatestReportData;
+    final data = widget.reportData ?? context.read<ReportProvider>().reportData;
     _jobId = data?['job_id'];
     _loadHistory();
   }
@@ -144,7 +145,7 @@ class _AiScreenState extends State<AiScreen> {
       return;
     }
     if (index == 1) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: widget.reportData ?? globalLatestReportData)));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: widget.reportData ?? context.read<ReportProvider>().reportData)));
       return;
     }
     if (index == 3) {

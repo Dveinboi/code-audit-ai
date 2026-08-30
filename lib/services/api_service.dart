@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
   static final _supabase = Supabase.instance.client;
@@ -11,31 +12,40 @@ class ApiService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return [];
       
-      // Fetch all repositories
+      // 1. Fetch all repositories
       final repos = await _supabase.from('repositories').select('*');
       
-      // Fetch user favorites
+      // 2. Fetch user favorites
       final favoritesRes = await _supabase.from('user_favorites').select('repository_id').eq('user_id', userId);
       final favoriteIds = favoritesRes.map((f) => f['repository_id']).toSet();
 
+      // 3. Fetch ALL reports for the user in ONE network call, ordered by date
+      final allReports = await _supabase.from('reports')
+          .select('repository_id, overall_score, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      // Group by repository_id to keep only the latest report per repo
+      final latestReports = <String, Map<String, dynamic>>{};
+      for (var report in allReports) {
+        final repoId = report['repository_id'];
+        if (repoId != null && !latestReports.containsKey(repoId)) {
+          latestReports[repoId] = report;
+        }
+      }
+
+      // Assemble final results
       List<Map<String, dynamic>> results = [];
       for (var repo in repos) {
-        // Fetch latest report for this repo and user
-        final reports = await _supabase.from('reports')
-            .select('overall_score, created_at')
-            .eq('repository_id', repo['id'])
-            .eq('user_id', userId)
-            .order('created_at', ascending: false)
-            .limit(1);
-            
-        if (reports.isNotEmpty) {
-          final latestReport = reports.first;
+        final repoId = repo['id'];
+        if (latestReports.containsKey(repoId)) {
+          final latestReport = latestReports[repoId]!;
           results.add({
-            'repository_id': repo['id'],
+            'repository_id': repoId,
             'repo_name': repo['repo_name'] ?? repo['repo_url'] ?? 'Unknown',
             'latest_score': latestReport['overall_score'] ?? 0,
             'analyzed_at': latestReport['created_at'] ?? '',
-            'is_favorite': favoriteIds.contains(repo['id']),
+            'is_favorite': favoriteIds.contains(repoId),
           });
         }
       }
@@ -89,8 +99,9 @@ class ApiService {
       throw Exception('User authentication not found. Please log in again.');
     }
 
-    // Use your computer's local IP for physical device testing
-    final backendUrl = 'http://192.168.29.207:8000/api/analyze'; 
+    // Use dotenv for the backend URL
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final backendUrl = '$baseUrl/api/analyze'; 
 
     final response = await http.post(
       Uri.parse(backendUrl),
@@ -264,7 +275,8 @@ class ApiService {
       return;
     }
 
-    final backendUrl = 'http://192.168.29.207:8000/api/ai/chat'; 
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final backendUrl = '$baseUrl/api/ai/chat'; 
     
     final client = http.Client();
     final request = http.Request('POST', Uri.parse(backendUrl))

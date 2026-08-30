@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app.dart'; 
 import 'theme_provider.dart';
+import 'providers/report_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env");
 
   // Initialize Supabase in the true entry point
   await Supabase.initialize(
@@ -17,5 +22,12 @@ Future<void> main() async {
   final isDarkMode = prefs.getBool('is_dark_mode') ?? false;
   themeNotifier = ValueNotifier(isDarkMode ? ThemeMode.dark : ThemeMode.light);
 
-  runApp(MyApp(themeNotifier: themeNotifier));
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ReportProvider()),
+      ],
+      child: MyApp(themeNotifier: themeNotifier),
+    ),
+  );
 }

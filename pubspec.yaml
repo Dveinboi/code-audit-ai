@@ -46,6 +46,8 @@ dependencies:
   printing: ^5.14.3
   path_provider: ^2.1.5
   open_filex: ^4.7.0
+  flutter_dotenv: ^6.0.1
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:
@@ -70,8 +72,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/images/logo.svg
     - assets/images/onboard2.svg
     - assets/images/onboard3.svg

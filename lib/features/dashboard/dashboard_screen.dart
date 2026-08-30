@@ -7,9 +7,9 @@ import '../history/history_screen.dart';
 import '../issues/category_issues_screen.dart';
 import '../../services/api_service.dart';
 import '../../services/pdf_report_service.dart';
-
-// Global variable to share the latest report data across screens pushed without arguments
-Map<String, dynamic>? globalLatestReportData;
+import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../../providers/report_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String? jobId;
@@ -76,7 +76,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .maybeSingle();
             
         _reportData = reportResponse;
-        globalLatestReportData = reportResponse; // Store globally
+        if (mounted) {
+          context.read<ReportProvider>().setReportData(reportResponse); // Store globally
+        }
         
         // 3. Get Repo Name
         if (reportResponse != null) {
