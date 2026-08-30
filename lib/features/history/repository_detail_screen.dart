@@ -5,6 +5,7 @@ import '../dashboard/dashboard_screen.dart';
 import 'history_screen.dart';
 import '../../services/api_service.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:fl_chart/fl_chart.dart';
 
 class RepositoryDetailScreen extends StatefulWidget {
   final String repoName;
@@ -24,6 +25,7 @@ class RepositoryDetailScreen extends StatefulWidget {
 
 class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
   late Future<Map<String, dynamic>> _repoFuture;
+  String _timeFilter = 'Month'; // Default filter
 
   @override
   void initState() {
@@ -74,6 +76,31 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
 
             final reports = List<dynamic>.from(snapshot.data!['reports']);
             final latestReport = reports.last; // Because it was sorted ascending in backend
+            
+            // Filter reports for the chart
+            final now = DateTime.now();
+            List<dynamic> chartReports = reports.where((r) {
+              if (r['created_at'] == null) return false;
+              try {
+                final date = DateTime.parse(r['created_at']).toLocal();
+                if (_timeFilter == 'Day') {
+                  return now.difference(date).inHours <= 24;
+                } else if (_timeFilter == 'Week') {
+                  return now.difference(date).inDays <= 7;
+                } else {
+                  return now.difference(date).inDays <= 30; // Month
+                }
+              } catch(e) {
+                return false;
+              }
+            }).toList();
+            
+            // Sort ascending for graph
+            chartReports.sort((a, b) {
+              final da = DateTime.parse(a['created_at']).toLocal();
+              final db = DateTime.parse(b['created_at']).toLocal();
+              return da.compareTo(db);
+            });
 
             final String latestDateStr = latestReport['created_at'] ?? '';
             String latestFormattedDate = 'Unknown date';
@@ -100,25 +127,62 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Score Trend',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Score Trend',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                            Container(
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: ['Day', 'Week', 'Month'].map((filter) {
+                                  final isSelected = _timeFilter == filter;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _timeFilter = filter;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          filter,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            color: isSelected ? Colors.white : subtitleColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
                           height: 150,
                           width: double.infinity,
-                          child: CustomPaint(
-                            painter: _DynamicTrendChartPainter(
-                              gridColor: dividerColor,
-                              labelColor: subtitleColor,
-                              reports: reports,
-                            ),
-                          ),
+                          child: chartReports.isEmpty
+                            ? Center(child: Text('No data for selected period', style: TextStyle(color: subtitleColor)))
+                            : _buildFlChart(chartReports, isDark, subtitleColor),
                         ),
                       ],
                     ),
@@ -362,95 +426,112 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
       ),
     );
   }
-}
 
-class _DynamicTrendChartPainter extends CustomPainter {
-  final Color gridColor;
-  final Color labelColor;
-  final List<dynamic> reports;
-
-  _DynamicTrendChartPainter({required this.gridColor, required this.labelColor, required this.reports});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (reports.isEmpty) return;
-
-    final Paint linePaint = Paint()
-      ..color = const Color(0xFF3B82F6)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-
-    final Paint circleFillPaint = Paint()
-      ..color = const Color(0xFF3B82F6)
-      ..style = PaintingStyle.fill;
-
-    final Paint circleBorderPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final Paint gridPaint = Paint()
-      ..color = gridColor
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(Offset(30, 0), Offset(size.width, 0), gridPaint);
-    canvas.drawLine(Offset(30, size.height / 2), Offset(size.width, size.height / 2), gridPaint);
-    canvas.drawLine(Offset(30, size.height), Offset(size.width, size.height), gridPaint);
-
-    final TextPainter tp = TextPainter(textDirection: TextDirection.ltr);
-    void drawText(String text, Offset offset) {
-      tp.text = TextSpan(text: text, style: TextStyle(color: labelColor, fontSize: 11));
-      tp.layout();
-      tp.paint(canvas, offset);
-    }
-    
-    drawText('100', const Offset(0, -6));
-    drawText('50', Offset(8, size.height / 2 - 6));
-    drawText('0', Offset(16, size.height - 6));
-
-    // Calculate dynamic points based on report scores
-    final List<Offset> points = [];
-    final int count = reports.length;
-    
-    for (int i = 0; i < count; i++) {
+  Widget _buildFlChart(List<dynamic> reports, bool isDark, Color subtitleColor) {
+    List<FlSpot> spots = [];
+    for (int i = 0; i < reports.length; i++) {
       final score = (reports[i]['overall_score'] ?? 0).toDouble();
-      
-      // Calculate X: spaced evenly across width (starting after y-axis labels)
-      final double startX = 40.0;
-      final double widthRemaining = size.width - startX;
-      final double x = count <= 1 ? size.width / 2 : startX + (widthRemaining / (count - 1)) * i;
-      
-      // Calculate Y: mapped inverted to height (100 = 0, 0 = height)
-      final double y = size.height - (score / 100.0) * size.height;
-      
-      points.add(Offset(x, y));
+      spots.add(FlSpot(i.toDouble(), score));
+    }
+    
+    // If only one data point, duplicate it to draw a flat line segment so it's visible
+    if (spots.length == 1) {
+      spots.add(FlSpot(1.0, spots[0].y));
     }
 
-    if (points.length > 1) {
-      final path = Path()..moveTo(points[0].dx, points[0].dy);
-      for (int i = 1; i < points.length; i++) {
-        path.lineTo(points[i].dx, points[i].dy);
-      }
-      canvas.drawPath(path, linePaint);
-    }
-
-    for (int i = 0; i < points.length; i++) {
-      canvas.drawCircle(points[i], 5, circleFillPaint);
-      canvas.drawCircle(points[i], 5, circleBorderPaint);
-      
-      // Draw dates
-      String dateStr = reports[i]['created_at'] ?? '';
-      if (dateStr.isNotEmpty) {
-        try {
-           final date = DateTime.parse(dateStr).toLocal();
-           final formattedDate = DateFormat('MMM dd').format(date);
-           drawText(formattedDate, Offset(points[i].dx - 15, size.height + 10));
-        } catch(e) {}
-      }
-    }
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 50,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              strokeWidth: 1,
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)), // Hide x-axis dates
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 50,
+              reservedSize: 32,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  value.toInt().toString(),
+                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        minX: 0,
+        maxX: (spots.length - 1).toDouble().clamp(1.0, double.infinity),
+        minY: 0,
+        maxY: 100,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: false, // Straight lines
+            color: const Color(0xFF3B82F6),
+            barWidth: 2.5,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: const Color(0xFF3B82F6),
+                  strokeWidth: 2,
+                  strokeColor: Colors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: false,
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => isDark ? const Color(0xFF334155) : const Color(0xFF1E293B),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((LineBarSpot touchedSpot) {
+                int index = touchedSpot.spotIndex;
+                if (reports.length == 1) index = 0; // Prevent out of bounds if duplicated
+                
+                String dateStr = reports[index]['created_at'] ?? '';
+                String formattedDate = '';
+                if (dateStr.isNotEmpty) {
+                  try {
+                     final date = DateTime.parse(dateStr).toLocal();
+                     formattedDate = DateFormat('MMM dd, hh:mm a').format(date);
+                  } catch(e) {}
+                }
+                
+                return LineTooltipItem(
+                  '${touchedSpot.y.toInt()} / 100\n',
+                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  children: [
+                    TextSpan(
+                      text: formattedDate,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.normal),
+                    ),
+                  ],
+                );
+              }).toList();
+            },
+          ),
+          handleBuiltInTouches: true,
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

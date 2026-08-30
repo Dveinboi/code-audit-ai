@@ -10,6 +10,7 @@ import '../../services/pdf_report_service.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import '../../providers/report_provider.dart';
+import '../auth/sign_in_wall.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String? jobId;
@@ -69,11 +70,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       if (activeJobId != null) {
-        final reportResponse = await Supabase.instance.client
+        Map<String, dynamic>? reportResponse = await Supabase.instance.client
             .from('reports')
             .select('*')
             .eq('job_id', activeJobId)
             .maybeSingle();
+            
+        if (reportResponse == null) {
+          // If RLS blocked it (guest report), fetch from backend
+          reportResponse = await ApiService.getReportByJobId(activeJobId);
+        }
             
         _reportData = reportResponse;
         if (mounted) {
@@ -117,24 +123,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onBottomNavTapped(int index) {
+    final isGuest = Supabase.instance.client.auth.currentSession == null;
+    
     if (index == 1) {
       Navigator.push(context, MaterialPageRoute(builder: (context) => IssuesScreen(reportData: _reportData)));
       return;
     }
     if (index == 2) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: _reportData)));
+      if (isGuest) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInWallWidget(
+          title: 'Sign in to unlock AI',
+          description: 'Get deep insights and chat with our AI assistant about your repository.',
+          icon: Icons.auto_awesome,
+        )));
+      } else {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => AiScreen(reportData: _reportData)));
+      }
       return;
     }
     if (index == 3) {
-      if (widget.isLoggedInWithGithub) {
-        Navigator.pushNamed(context, '/select_repo', arguments: true);
+      if (isGuest) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInWallWidget(
+          title: 'Sign in to add repositories',
+          description: 'Create an account to analyze multiple repositories and save your history.',
+          icon: Icons.add_circle,
+        )));
       } else {
-        Navigator.pushNamed(context, '/add_repo');
+        Navigator.pushNamed(context, '/select_repo', arguments: true);
       }
       return;
     }
     if (index == 4) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
+      if (isGuest) {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInWallWidget(
+          title: 'Sign in to view history',
+          description: 'Track your repository scores over time and access past analyses.',
+          icon: Icons.history,
+        )));
+      } else {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
+      }
       return;
     }
     setState(() {
@@ -181,12 +209,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
               alignment: Alignment.centerLeft,
               child: GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfileScreen(),
-                    ),
-                  );
+                  final isGuest = Supabase.instance.client.auth.currentSession == null;
+                  if (isGuest) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignInWallWidget(
+                          title: 'Sign in to your profile',
+                          description: 'Save your settings, manage your repositories, and access all features.',
+                          icon: Icons.person,
+                        ),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileScreen(),
+                      ),
+                    );
+                  }
                 },
                 child: CircleAvatar(
                   radius: 18,

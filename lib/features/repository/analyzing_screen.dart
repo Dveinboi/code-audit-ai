@@ -140,10 +140,10 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          _status == 'completed' ? 'Completed' : 'Running...',
+                          _status == 'completed' ? 'Completed' : (_status == 'failed' ? 'Analysis Failed' : 'Running...'),
                           style: TextStyle(
                             fontSize: 14,
-                            color: subtitleColor,
+                            color: _status == 'failed' ? Colors.red : subtitleColor,
                           ),
                         ),
                       ],

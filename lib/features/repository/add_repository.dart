@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,57 +56,21 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
     });
 
     try {
-      final session = Supabase.instance.client.auth.currentSession;
-      String? githubToken = session?.providerToken;
-      final userId = session?.user.id;
-      final supabaseToken = session?.accessToken;
-
-      if (githubToken == null) {
-        final prefs = await SharedPreferences.getInstance();
-        githubToken = prefs.getString('github_provider_token');
-      }
-
-      if (githubToken == null) {
-        throw Exception('GitHub token not found. Please log in again.');
-      }
-      
-      if (userId == null || supabaseToken == null) {
-        throw Exception('User authentication not found. Please log in again.');
-      }
-
-      // Use your computer's local IP for physical device testing
-      final backendUrl = 'http://192.168.29.207:8000/api/analyze'; 
-
-      final response = await http.post(
-        Uri.parse(backendUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'repo_url': _urlController.text,
-          'github_token': githubToken,
-          'user_id': userId,
-          'supabase_token': supabaseToken,
-          'is_private': true, // Simplified for now
-          'security': _securityEnabled,
-          'quality': _qualityEnabled,
-          'performance': _performanceEnabled,
-          'maintainability': _maintainabilityEnabled,
-          'dependencies': _dependenciesEnabled,
-        }),
+      final jobId = await ApiService.startAnalysis(
+        _urlController.text,
+        security: _securityEnabled,
+        quality: _qualityEnabled,
+        performance: _performanceEnabled,
+        maintainability: _maintainabilityEnabled,
+        dependencies: _dependenciesEnabled,
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final jobId = data['job_id'];
-        
-        if (mounted) {
-          Navigator.pushNamed(
-            context,
-            '/analyzing',
-            arguments: jobId,
-          );
-        }
-      } else {
-        throw Exception('Failed to start analysis: ${response.body}');
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/analyzing',
+          arguments: jobId,
+        );
       }
     } catch (e) {
       if (mounted) {

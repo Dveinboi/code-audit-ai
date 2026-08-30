@@ -6,6 +6,7 @@ import 'github_login_webview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget { // Converted to StatefulWidget to handle loading state
   const LoginScreen({Key? key}) : super(key: key);
@@ -40,6 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
             'full_name': user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? 'Unknown',
             'avatar_url': user.userMetadata?['avatar_url'] ?? '',
           });
+
+          // Link guest account if one exists
+          final prefs = await SharedPreferences.getInstance();
+          final guestId = prefs.getString('guest_user_id');
+          if (guestId != null) {
+            await ApiService.linkGuestAccount(guestId, user.id);
+            await prefs.remove('guest_user_id'); // Clear it after linking
+          }
         } catch (e) {
           debugPrint('Failed to save user to database: $e');
         }

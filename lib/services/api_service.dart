@@ -79,7 +79,14 @@ class ApiService {
   }
 
 
-  static Future<String> startAnalysis(String repoUrl) async {
+  static Future<String> startAnalysis(
+    String repoUrl, {
+    bool security = true,
+    bool quality = true,
+    bool performance = true,
+    bool maintainability = true,
+    bool dependencies = true,
+  }) async {
     final session = Supabase.instance.client.auth.currentSession;
     String? githubToken = session?.providerToken;
     
@@ -88,15 +95,16 @@ class ApiService {
       githubToken = prefs.getString('github_provider_token');
     }
 
-    final userId = session?.user.id;
+    String? userId = session?.user.id;
     final supabaseToken = session?.accessToken;
 
-    if (githubToken == null) {
-      throw Exception('GitHub token not found. Please log in again.');
-    }
-    
-    if (userId == null || supabaseToken == null) {
-      throw Exception('User authentication not found. Please log in again.');
+    if (userId == null) {
+      final prefs = await SharedPreferences.getInstance();
+      userId = prefs.getString('guest_user_id');
+      if (userId == null) {
+        userId = 'guest_${DateTime.now().millisecondsSinceEpoch}';
+        await prefs.setString('guest_user_id', userId);
+      }
     }
 
     // Use dotenv for the backend URL
@@ -112,20 +120,43 @@ class ApiService {
         'user_id': userId,
         'supabase_token': supabaseToken,
         'is_private': true, 
-        'security': true,
-        'quality': true,
-        'performance': true,
-        'maintainability': true,
-        'dependencies': true,
+        'security': security,
+        'quality': quality,
+        'performance': performance,
+        'maintainability': maintainability,
+        'dependencies': dependencies,
       }),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['job_id'];
+      final jobId = data['job_id'];
+      
+      if (session?.user.id == null) {
+        final prefs = await SharedPreferences.getInstance();
+        List<String> guestJobs = prefs.getStringList('guest_job_ids') ?? [];
+        guestJobs.add(jobId);
+        await prefs.setStringList('guest_job_ids', guestJobs);
+      }
+      
+      return jobId;
     } else {
       throw Exception('Failed to start analysis: ${response.body}');
     }
+  }
+
+  static Future<Map<String, dynamic>?> getReportByJobId(String jobId) async {
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final backendUrl = '$baseUrl/api/report/$jobId';
+    try {
+      final response = await http.get(Uri.parse(backendUrl));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error fetching report from backend: $e');
+    }
+    return null;
   }
 
   static Future<Map<String, dynamic>> getRepositoryHistory(String repositoryId) async {
@@ -262,6 +293,32 @@ class ApiService {
     } catch (e) {
       print('Error fetching chat sessions: $e');
       return [];
+    }
+  }
+
+  static Future<void> linkGuestAccount(String guestId, String realUserId) async {
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://192.168.29.207:8000';
+    final backendUrl = '$baseUrl/api/link-guest';
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> guestJobs = prefs.getStringList('guest_job_ids') ?? [];
+      
+      if (guestJobs.isEmpty) return; // Nothing to link
+
+      await http.post(
+        Uri.parse(backendUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'guest_id': guestId,
+          'real_user_id': realUserId,
+          'job_ids': guestJobs,
+        }),
+      );
+      
+      await prefs.remove('guest_job_ids');
+    } catch (e) {
+      print('Failed to link guest account: $e');
     }
   }
 
