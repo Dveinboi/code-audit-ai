@@ -313,33 +313,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: (_reportData?['quality_gate'] == 'FAIL' || _reportData?['quality_gate'] == 'CRITICAL') 
-                        ? Colors.red.withOpacity(0.1) 
-                        : Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: (_reportData?['quality_gate'] == 'FAIL' || _reportData?['quality_gate'] == 'CRITICAL') 
-                        ? Colors.red.withOpacity(0.5) 
-                        : Colors.green.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    'QUALITY GATE: ${_reportData?['quality_gate'] ?? 'UNKNOWN'}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: (_reportData?['quality_gate'] == 'FAIL' || _reportData?['quality_gate'] == 'CRITICAL') 
-                        ? Colors.red 
-                        : Colors.green,
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 32),
 
                 SingleChildScrollView(
