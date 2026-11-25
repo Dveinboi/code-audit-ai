@@ -42,6 +42,17 @@ class MyApp extends StatelessWidget {
             ),
           ),
           themeMode: currentMode,
+          // Very large system font sizes make fixed-size layouts (charts, chips,
+          // cards) collide. Respect the user's setting but cap it app-wide.
+          builder: (context, child) {
+            final mq = MediaQuery.of(context);
+            return MediaQuery(
+              data: mq.copyWith(
+                textScaler: mq.textScaler.clamp(minScaleFactor: 0.85, maxScaleFactor: 1.15),
+              ),
+              child: child!,
+            );
+          },
           initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),

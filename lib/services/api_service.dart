@@ -70,7 +70,7 @@ class ApiService {
     }
 
     // Use dotenv for the backend URL
-    final baseUrl = dotenv.env['API_BASE_URL'];
+    final baseUrl = dotenv.env['API_BASE_URL']?.replaceAll(RegExp(r'\s+'), '');
     if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/analyze'; 
 
@@ -109,7 +109,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>?> getReportByJobId(String jobId) async {
-    final baseUrl = dotenv.env['API_BASE_URL'];
+    final baseUrl = dotenv.env['API_BASE_URL']?.replaceAll(RegExp(r'\s+'), '');
     if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/report/$jobId';
     try {
@@ -261,7 +261,7 @@ class ApiService {
   }
 
   static Future<void> linkGuestAccount(String guestId, String realUserId) async {
-    final baseUrl = dotenv.env['API_BASE_URL'];
+    final baseUrl = dotenv.env['API_BASE_URL']?.replaceAll(RegExp(r'\s+'), '');
     if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/link-guest';
     
@@ -297,7 +297,7 @@ class ApiService {
       return;
     }
 
-    final baseUrl = dotenv.env['API_BASE_URL'];
+    final baseUrl = dotenv.env['API_BASE_URL']?.replaceAll(RegExp(r'\s+'), '');
     if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
     final backendUrl = '$baseUrl/api/ai/chat'; 
     

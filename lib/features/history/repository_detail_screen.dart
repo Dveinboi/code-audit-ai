@@ -25,7 +25,30 @@ class RepositoryDetailScreen extends StatefulWidget {
 
 class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
   late Future<Map<String, dynamic>> _repoFuture;
-  String _timeFilter = 'Month'; // Default filter
+  static const List<String> _filters = ['Day', 'Week', 'Month', 'Year', 'All'];
+  String _timeFilter = 'All'; // Default: show every analysis ever made
+
+  /// Look-back window for each filter; null means no limit ("All").
+  static Duration? _periodFor(String filter) {
+    switch (filter) {
+      case 'Day':
+        return const Duration(days: 1);
+      case 'Week':
+        return const Duration(days: 7);
+      case 'Month':
+        return const Duration(days: 30);
+      case 'Year':
+        return const Duration(days: 365);
+      default:
+        return null;
+    }
+  }
+
+  static Color _scoreColor(double score) {
+    if (score >= 80) return const Color(0xFF10B981);
+    if (score >= 50) return Colors.orange;
+    return Colors.red;
+  }
 
   @override
   void initState() {
@@ -55,6 +78,8 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
         ),
         title: Text(
           widget.repoName.contains('/') ? widget.repoName.split('/').last : widget.repoName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -77,30 +102,19 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
             final reports = List<dynamic>.from(snapshot.data!['reports']);
             final latestReport = reports.last; // Because it was sorted ascending in backend
             
-            // Filter reports for the chart
+            // Build chart points (date + score) for the selected period
             final now = DateTime.now();
-            List<dynamic> chartReports = reports.where((r) {
-              if (r['created_at'] == null) return false;
-              try {
-                final date = DateTime.parse(r['created_at']).toLocal();
-                if (_timeFilter == 'Day') {
-                  return now.difference(date).inHours <= 24;
-                } else if (_timeFilter == 'Week') {
-                  return now.difference(date).inDays <= 7;
-                } else {
-                  return now.difference(date).inDays <= 30; // Month
-                }
-              } catch(e) {
-                return false;
-              }
-            }).toList();
-            
-            // Sort ascending for graph
-            chartReports.sort((a, b) {
-              final da = DateTime.parse(a['created_at']).toLocal();
-              final db = DateTime.parse(b['created_at']).toLocal();
-              return da.compareTo(db);
-            });
+            final period = _periodFor(_timeFilter);
+            final List<_ScorePoint> chartPoints = [];
+            for (final r in reports) {
+              final raw = r['created_at'];
+              if (raw == null) continue;
+              final date = DateTime.tryParse(raw.toString())?.toLocal();
+              if (date == null) continue;
+              if (period != null && date.isBefore(now.subtract(period))) continue;
+              chartPoints.add(_ScorePoint(date, ((r['overall_score'] ?? 0) as num).toDouble()));
+            }
+            chartPoints.sort((a, b) => a.date.compareTo(b.date));
 
             final String latestDateStr = latestReport['created_at'] ?? '';
             String latestFormattedDate = 'Unknown date';
@@ -129,6 +143,7 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Score Trend',
@@ -138,51 +153,62 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
                                 color: textColor,
                               ),
                             ),
-                            Container(
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: ['Day', 'Week', 'Month'].map((filter) {
-                                  final isSelected = _timeFilter == filter;
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _timeFilter = filter;
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          filter,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                            color: isSelected ? Colors.white : subtitleColor,
-                                          ),
-                                        ),
+                            _buildTrendSummary(chartPoints, subtitleColor),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          height: 34,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: _filters.map((filter) {
+                              final isSelected = _timeFilter == filter;
+                              return Expanded(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => setState(() => _timeFilter = filter),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      filter,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                        color: isSelected ? Colors.white : subtitleColor,
                                       ),
                                     ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
-                          height: 150,
+                          height: 210,
                           width: double.infinity,
-                          child: chartReports.isEmpty
-                            ? Center(child: Text('No data for selected period', style: TextStyle(color: subtitleColor)))
-                            : _buildFlChart(chartReports, isDark, subtitleColor),
+                          child: chartPoints.isEmpty
+                            ? Center(
+                                child: Text(
+                                  _timeFilter == 'All'
+                                      ? 'No analyses yet'
+                                      : 'No analyses in the last ${_timeFilter.toLowerCase()}',
+                                  style: TextStyle(color: subtitleColor),
+                                ),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: _buildFlChart(chartPoints, now, isDark, subtitleColor),
+                              ),
                         ),
                       ],
                     ),
@@ -427,111 +453,221 @@ class _RepositoryDetailScreenState extends State<RepositoryDetailScreen> {
     );
   }
 
-  Widget _buildFlChart(List<dynamic> reports, bool isDark, Color subtitleColor) {
-    List<FlSpot> spots = [];
-    for (int i = 0; i < reports.length; i++) {
-      final score = (reports[i]['overall_score'] ?? 0).toDouble();
-      spots.add(FlSpot(i.toDouble(), score));
+  /// "N analyses · ▲ +12" shown next to the chart title.
+  Widget _buildTrendSummary(List<_ScorePoint> points, Color subtitleColor) {
+    if (points.isEmpty) return const SizedBox.shrink();
+    final count = '${points.length} ${points.length == 1 ? 'analysis' : 'analyses'}';
+    if (points.length < 2) {
+      return Text(count, style: TextStyle(fontSize: 12, color: subtitleColor));
     }
-    
-    // If only one data point, duplicate it to draw a flat line segment so it's visible
-    if (spots.length == 1) {
-      spots.add(FlSpot(1.0, spots[0].y));
+    final delta = (points.last.score - points.first.score).round();
+    final deltaColor = delta > 0
+        ? const Color(0xFF10B981)
+        : (delta < 0 ? Colors.red : subtitleColor);
+    final deltaText = delta > 0 ? '▲ +$delta' : (delta < 0 ? '▼ $delta' : '— 0');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(deltaText,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: deltaColor)),
+        const SizedBox(height: 2),
+        Text(count, style: TextStyle(fontSize: 11, color: subtitleColor)),
+      ],
+    );
+  }
+
+  /// Picks an x-axis date format that suits the visible time span.
+  static DateFormat _axisFormat(Duration span) {
+    if (span <= const Duration(days: 2)) return DateFormat('h:mm a');
+    if (span <= const Duration(days: 14)) return DateFormat('EEE d');
+    if (span <= const Duration(days: 120)) return DateFormat('d MMM');
+    if (span <= const Duration(days: 730)) return DateFormat("MMM ''yy");
+    return DateFormat('yyyy');
+  }
+
+  Widget _buildFlChart(List<_ScorePoint> points, DateTime now, bool isDark, Color subtitleColor) {
+    const lineColor = Color(0xFF3B82F6);
+    final gridColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
+    // X axis is real time (ms since epoch), so gaps between analyses are to scale.
+    final spots = points
+        .map((p) => FlSpot(p.date.millisecondsSinceEpoch.toDouble(), p.score))
+        .toList();
+
+    double minX;
+    double maxX;
+    final period = _periodFor(_timeFilter);
+    if (period != null) {
+      // Fixed window: e.g. "Week" always spans the last 7 days up to now.
+      minX = now.subtract(period).millisecondsSinceEpoch.toDouble();
+      maxX = now.millisecondsSinceEpoch.toDouble();
+    } else {
+      // "All": from the first analysis to the latest one.
+      minX = spots.first.x;
+      maxX = spots.last.x;
+      if (maxX - minX < const Duration(hours: 1).inMilliseconds) {
+        // Single analysis (or several within an hour): center them in a 1-day window.
+        final mid = (minX + maxX) / 2;
+        final half = const Duration(hours: 12).inMilliseconds.toDouble();
+        minX = mid - half;
+        maxX = mid + half;
+      }
     }
+    // A little breathing room so the end dots aren't cut off.
+    final pad = (maxX - minX) * 0.04;
+    minX -= pad;
+    maxX += pad;
+
+    final span = Duration(milliseconds: (maxX - minX).round());
+    final fmt = _axisFormat(span);
+
+    // fl_chart places ticks at multiples of `interval` counted from 0, plus it
+    // always adds labels at min and max. Shift the axis so it starts at 0 —
+    // ticks then land exactly at 0, ⅓, ⅔ and the end of the range.
+    final origin = minX;
+    final spanX = maxX - minX;
+    final xInterval = spanX / 3; // 4 date labels across the axis
+    final chartSpots = spots.map((s) => FlSpot(s.x - origin, s.y)).toList();
 
     return LineChart(
       LineChartData(
+        minX: 0,
+        maxX: spanX,
+        minY: 0,
+        maxY: 100,
+        clipData: const FlClipData.none(),
+        borderData: FlBorderData(
+          show: true,
+          border: Border(bottom: BorderSide(color: gridColor, width: 1)),
+        ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 50,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-              strokeWidth: 1,
-            );
-          },
+          horizontalInterval: 25,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: gridColor,
+            strokeWidth: 1,
+            dashArray: value == 0 ? null : [4, 4],
+          ),
         ),
         titlesData: FlTitlesData(
           show: true,
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)), // Hide x-axis dates
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval: 50,
-              reservedSize: 32,
-              getTitlesWidget: (value, meta) {
-                return Text(
+              interval: 25,
+              reservedSize: 34,
+              getTitlesWidget: (value, meta) => SideTitleWidget(
+                meta: meta,
+                space: 8,
+                child: Text(
                   value.toInt().toString(),
                   style: TextStyle(color: subtitleColor, fontSize: 11),
+                ),
+              ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: xInterval,
+              reservedSize: 30,
+              getTitlesWidget: (value, meta) {
+                // Drop any tick that sits too close to the forced min/max labels
+                // (rounding can produce a near-duplicate of the last tick).
+                final nearMax = value != meta.max && (meta.max - value) < xInterval * 0.5;
+                final nearMin = value != meta.min && (value - meta.min) < xInterval * 0.5;
+                if (nearMax || nearMin) return const SizedBox.shrink();
+                final date = DateTime.fromMillisecondsSinceEpoch((value + origin).round());
+                return SideTitleWidget(
+                  meta: meta,
+                  space: 8,
+                  fitInside: SideTitleFitInsideData.fromTitleMeta(meta, distanceFromEdge: 0),
+                  child: Text(
+                    fmt.format(date),
+                    style: TextStyle(color: subtitleColor, fontSize: 10),
+                  ),
                 );
               },
             ),
           ),
         ),
-        borderData: FlBorderData(show: false),
-        minX: 0,
-        maxX: (spots.length - 1).toDouble().clamp(1.0, double.infinity),
-        minY: 0,
-        maxY: 100,
         lineBarsData: [
           LineChartBarData(
-            spots: spots,
-            isCurved: false, // Straight lines
-            color: const Color(0xFF3B82F6),
+            spots: chartSpots,
+            isCurved: spots.length > 2,
+            curveSmoothness: 0.25,
+            preventCurveOverShooting: true,
+            color: lineColor,
             barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: FlDotData(
               show: true,
-              getDotPainter: (spot, percent, barData, index) {
-                return FlDotCirclePainter(
-                  radius: 4,
-                  color: const Color(0xFF3B82F6),
-                  strokeWidth: 2,
-                  strokeColor: Colors.white,
-                );
-              },
+              getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                radius: spots.length > 40 ? 2.5 : 4.5,
+                color: _scoreColor(spot.y),
+                strokeWidth: 2,
+                strokeColor: isDark ? const Color(0xFF111111) : Colors.white,
+              ),
             ),
             belowBarData: BarAreaData(
-              show: false,
+              show: spots.length > 1,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  lineColor.withValues(alpha: 0.25),
+                  lineColor.withValues(alpha: 0.0),
+                ],
+              ),
             ),
           ),
         ],
         lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (touchedSpot) => isDark ? const Color(0xFF334155) : const Color(0xFF1E293B),
-            getTooltipItems: (touchedSpots) {
-              return touchedSpots.map((LineBarSpot touchedSpot) {
-                int index = touchedSpot.spotIndex;
-                if (reports.length == 1) index = 0; // Prevent out of bounds if duplicated
-                
-                String dateStr = reports[index]['created_at'] ?? '';
-                String formattedDate = '';
-                if (dateStr.isNotEmpty) {
-                  try {
-                     final date = DateTime.parse(dateStr).toLocal();
-                     formattedDate = DateFormat('MMM dd, hh:mm a').format(date);
-                  } catch(e) {}
-                }
-                
-                return LineTooltipItem(
-                  '${touchedSpot.y.toInt()} / 100\n',
-                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                  children: [
-                    TextSpan(
-                      text: formattedDate,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.normal),
-                    ),
-                  ],
-                );
-              }).toList();
-            },
-          ),
           handleBuiltInTouches: true,
+          getTouchedSpotIndicator: (barData, indexes) => indexes
+              .map((_) => TouchedSpotIndicatorData(
+                    FlLine(color: subtitleColor.withValues(alpha: 0.5), strokeWidth: 1, dashArray: [3, 3]),
+                    FlDotData(
+                      getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                        radius: 6,
+                        color: _scoreColor(spot.y),
+                        strokeWidth: 2.5,
+                        strokeColor: Colors.white,
+                      ),
+                    ),
+                  ))
+              .toList(),
+          touchTooltipData: LineTouchTooltipData(
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            getTooltipColor: (touchedSpot) =>
+                isDark ? const Color(0xFF334155) : const Color(0xFF1E293B),
+            getTooltipItems: (touchedSpots) => touchedSpots.map((touchedSpot) {
+              final point = points[touchedSpot.spotIndex];
+              return LineTooltipItem(
+                '${point.score.toInt()} / 100\n',
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                children: [
+                  TextSpan(
+                    text: DateFormat('dd MMM yyyy, hh:mm a').format(point.date),
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12, fontWeight: FontWeight.normal),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
   }
+}
+
+class _ScorePoint {
+  final DateTime date;
+  final double score;
+  const _ScorePoint(this.date, this.score);
 }
