@@ -423,17 +423,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderColor: borderColor,
                         textColor: subtitleColor,
                       ),
-                      const SizedBox(width: 12),
-                      _buildMetricCard(
-                        icon: Icons.design_services_outlined,
-                        title: 'UX / UI',
-                        score: _reportData?['score_ux'],
-                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'ux/ui' || i['category']?.toString().toLowerCase() == 'ux' || i['line']?.toString().toLowerCase() == 'ux').toList() ?? [],
-                        category: 'UX/UI',
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: subtitleColor,
-                      ),
                     ],
                   ),
                 ),
@@ -661,7 +650,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           MaterialPageRoute(
             builder: (context) => CategoryIssuesScreen(
               categoryName: category,
-              score: score.toString(),
+              score: score?.toString() ?? 'N/A',
               scoreColor: scoreColor,
               categoryIssues: issues.map((e) => e as Map<String, dynamic>).toList(),
             ),

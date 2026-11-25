@@ -18,14 +18,16 @@ class PdfReportService {
     final aiSummary = reportData?['ai_summary'] ?? 'No AI summary available.';
     final detailedFindings = reportData?['detailed_findings'] as List<dynamic>? ?? [];
 
-    final scores = {
-      'Security': reportData?['score_security'] ?? 0,
-      'Quality': reportData?['score_quality'] ?? 0,
-      'Performance': reportData?['score_performance'] ?? 0,
-      'Maintainability': reportData?['score_maintainability'] ?? 0,
-      'Dependencies': reportData?['score_dependencies'] ?? 0,
-      'Testing': reportData?['score_testing'] ?? 0,
+    // Only chart categories that were actually measured (null = not measured).
+    final allScores = {
+      'Security': reportData?['score_security'],
+      'Quality': reportData?['score_quality'],
+      'Performance': reportData?['score_performance'],
+      'Maintainability': reportData?['score_maintainability'],
+      'Dependencies': reportData?['score_dependencies'],
+      'Testing': reportData?['score_testing'],
     };
+    final scores = Map.fromEntries(allScores.entries.where((e) => e.value != null));
 
     final labels = scores.keys.toList();
     final currentValues = scores.values.map((e) => (e as num).toInt()).toList();

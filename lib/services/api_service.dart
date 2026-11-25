@@ -104,7 +104,12 @@ class ApiService {
       
       return jobId;
     } else {
-      throw Exception('Failed to start analysis: ${response.body}');
+      // Show the server's human-readable message (e.g. "Only public websites can be checked").
+      String message = response.body;
+      try {
+        message = jsonDecode(response.body)['detail']?.toString() ?? message;
+      } catch (_) {}
+      throw Exception(message);
     }
   }
 

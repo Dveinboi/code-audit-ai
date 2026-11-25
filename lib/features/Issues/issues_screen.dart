@@ -24,7 +24,6 @@ class _IssuesScreenState extends State<IssuesScreen> {
     'Performance',
     'Maintainability',
     'Testing',
-    'UX'
   ];
 
   @override
@@ -37,18 +36,9 @@ class _IssuesScreenState extends State<IssuesScreen> {
     final reportData = context.read<ReportProvider>().reportData;
     if (reportData != null && reportData['detailed_findings'] != null) {
       final findings = reportData['detailed_findings'] as List<dynamic>;
-      _issues = findings.map((f) {
-        final finding = f as Map<String, dynamic>;
-        return {
-          'title': finding['title'] ?? 'Unknown Issue',
-          'severity': finding['severity'] ?? 'Medium',
-          'location': finding['evidence'] ?? 'Unknown Location',
-          'description': finding['impact'] ?? 'No impact specified',
-          'recommendation': finding['recommendation'] ?? 'No recommendation',
-          'codeSnippet': finding['priority'] != null ? 'Priority: ${finding['priority']}\nConfidence: ${finding['confidence']}' : 'No code snippet provided.',
-          'line': finding['category'] ?? 'General',
-        };
-      }).toList();
+      _issues = findings
+          .map((f) => IssueDetailsScreen.fromFinding(f as Map<String, dynamic>))
+          .toList();
     } else {
       _issues = [
         {

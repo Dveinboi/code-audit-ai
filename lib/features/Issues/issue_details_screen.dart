@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
-import '../profile/profile_screen.dart';
-import '../ai/ai_screen.dart'; 
-import '../history/history_screen.dart'; // Added History screen import
+import '../ai/ai_screen.dart';
+import '../history/history_screen.dart';
 
 class IssueDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> issueData;
 
   const IssueDetailsScreen({Key? key, required this.issueData}) : super(key: key);
+
+  /// Converts a report finding into the map this screen and the issue lists use.
+  static Map<String, dynamic> fromFinding(Map<String, dynamic> finding, [String? jobId]) {
+    final code = (finding['code'] ?? '').toString();
+    return {
+      'title': finding['title'] ?? 'Unknown Issue',
+      'severity': finding['severity'] ?? 'Medium',
+      'location': finding['evidence'] ?? finding['location'] ?? 'Unknown Location',
+      'description': finding['impact'] ?? finding['description'] ?? 'No description specified',
+      'recommendation': finding['recommendation'] ?? 'No recommendation',
+      // Real code from the repository when the scanner captured it.
+      'codeSnippet': code.trim().isNotEmpty
+          ? code
+          : (finding['priority'] != null
+              ? 'Priority: ${finding['priority']}\nConfidence: ${finding['confidence']}'
+              : 'No code snippet provided.'),
+      'line': finding['category'] ?? finding['line'] ?? 'General',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +37,7 @@ class IssueDetailsScreen extends StatelessWidget {
     final snippetBgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final snippetTextColor = isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
 
-    final isHigh = issueData['severity'] == 'High';
+    final isHigh = issueData['severity'] == 'High' || issueData['severity'] == 'Critical';
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -59,7 +77,7 @@ class IssueDetailsScreen extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        issueData['title'],
+                        issueData['title'].toString(),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -70,11 +88,11 @@ class IssueDetailsScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isHigh ? const Color(0xFFFEF2F2).withOpacity(isDark ? 0.1 : 1) : const Color(0xFFFEF3C7).withOpacity(isDark ? 0.1 : 1),
+                        color: isHigh ? const Color(0xFFFEF2F2).withValues(alpha: isDark ? 0.1 : 1) : const Color(0xFFFEF3C7).withValues(alpha: isDark ? 0.1 : 1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        issueData['severity'],
+                        issueData['severity'].toString(),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -90,8 +108,8 @@ class IssueDetailsScreen extends StatelessWidget {
                 Text('File', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
-                  (issueData['location'] ?? '').toString().contains(':') 
-                      ? issueData['location'].toString().split(':')[0] 
+                  (issueData['location'] ?? '').toString().contains(':')
+                      ? issueData['location'].toString().split(':')[0]
                       : (issueData['location']?.toString() ?? 'Unknown'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
                 ),
@@ -101,7 +119,7 @@ class IssueDetailsScreen extends StatelessWidget {
                 Text('Line', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
-                  issueData['line'],
+                  issueData['line'].toString(),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
                 ),
                 const SizedBox(height: 16),
@@ -110,7 +128,7 @@ class IssueDetailsScreen extends StatelessWidget {
                 Text('Description', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
-                  issueData['description'],
+                  issueData['description'].toString(),
                   style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569), height: 1.4),
                 ),
                 const SizedBox(height: 16),
@@ -119,7 +137,7 @@ class IssueDetailsScreen extends StatelessWidget {
                 Text('Recommendation', style: TextStyle(fontSize: 13, color: subtitleColor, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(
-                  issueData['recommendation'],
+                  issueData['recommendation'].toString(),
                   style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569), height: 1.4),
                 ),
                 const SizedBox(height: 20),
@@ -135,13 +153,16 @@ class IssueDetailsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: dividerColor),
                   ),
-                  child: Text(
-                    issueData['codeSnippet'],
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                      color: snippetTextColor,
-                      height: 1.5,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      issueData['codeSnippet'].toString(),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        color: snippetTextColor,
+                        height: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -169,7 +190,6 @@ class IssueDetailsScreen extends StatelessWidget {
             } else if (index == 3) {
               Navigator.pushNamed(context, '/select_repo');
             } else if (index == 4) {
-              // Updated Navigation to History screen
               Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
             }
           },
