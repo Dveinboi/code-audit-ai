@@ -56,13 +56,24 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
     });
 
     try {
+      // 1. Ask which branch to analyze (skipped when the repo has only one).
+      final branches = await ApiService.getBranches(_urlController.text.trim());
+      String? branch = branches.isNotEmpty ? branches.first : null;
+      if (branches.length > 1) {
+        if (!mounted) return;
+        branch = await _pickBranch(branches);
+        if (branch == null) return; // user closed the picker
+      }
+
+      // 2. Start the analysis on that branch.
       final jobId = await ApiService.startAnalysis(
-        _urlController.text,
+        _urlController.text.trim(),
         security: _securityEnabled,
         quality: _qualityEnabled,
         performance: _performanceEnabled,
         maintainability: _maintainabilityEnabled,
         dependencies: _dependenciesEnabled,
+        branch: branch,
       );
 
       if (mounted) {
@@ -75,7 +86,7 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}')),
         );
       }
     } finally {
@@ -85,6 +96,73 @@ class _AddRepositoryScreenState extends State<AddRepositoryScreen> {
         });
       }
     }
+  }
+
+  /// Bottom sheet listing the repo's branches; the default branch is first.
+  Future<String?> _pickBranch(List<String> branches) {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(24, 20, 24, 4),
+                child: Text(
+                  'Which branch should be analyzed?',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Text(
+                  'The latest commit on that branch will be scanned.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                ),
+              ),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: branches.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  itemBuilder: (context, i) => ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                    leading: const Icon(Icons.call_split, color: Color(0xFF64748B)),
+                    title: Text(
+                      branches[i],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                    ),
+                    trailing: i == 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('default',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
+                          )
+                        : null,
+                    onTap: () => Navigator.pop(context, branches[i]),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override

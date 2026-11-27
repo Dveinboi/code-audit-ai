@@ -48,6 +48,7 @@ class ApiService {
     bool performance = true,
     bool maintainability = true,
     bool dependencies = true,
+    String? branch,
   }) async {
     final session = Supabase.instance.client.auth.currentSession;
     String? githubToken = session?.providerToken;
@@ -88,6 +89,7 @@ class ApiService {
         'performance': performance,
         'maintainability': maintainability,
         'dependencies': dependencies,
+        if (branch != null && branch.isNotEmpty) 'branch': branch,
       }),
     );
 
@@ -111,6 +113,33 @@ class ApiService {
       } catch (_) {}
       throw Exception(message);
     }
+  }
+
+  /// Branch names of a repository, default branch first (for the branch picker).
+  static Future<List<String>> getBranches(String repoUrl) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    String? githubToken = session?.providerToken;
+    if (githubToken == null) {
+      final prefs = await SharedPreferences.getInstance();
+      githubToken = prefs.getString('github_provider_token');
+    }
+
+    final baseUrl = dotenv.env['API_BASE_URL']?.replaceAll(RegExp(r'\s+'), '');
+    if (baseUrl == null) throw Exception('API_BASE_URL not found in .env');
+
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/api/branches'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'repo_url': repoUrl, 'github_token': githubToken}),
+        )
+        .timeout(const Duration(seconds: 30));
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return List<String>.from((data['branches'] as List).map((b) => b.toString()));
+    }
+    throw Exception(data['detail']?.toString() ?? 'Could not load branches.');
   }
 
   static Future<Map<String, dynamic>?> getReportByJobId(String jobId) async {

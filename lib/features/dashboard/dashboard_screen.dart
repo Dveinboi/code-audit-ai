@@ -385,17 +385,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderColor: borderColor,
                         textColor: subtitleColor,
                       ),
-                      const SizedBox(width: 12),
-                      _buildMetricCard(
-                        icon: Icons.science_outlined,
-                        title: 'Testing',
-                        score: _reportData?['score_testing'],
-                        issues: _reportData?['detailed_findings']?.where((i) => i['category']?.toString().toLowerCase() == 'testing' || i['line']?.toString().toLowerCase() == 'testing').toList() ?? [],
-                        category: 'Testing',
-                        cardColor: cardColor,
-                        borderColor: borderColor,
-                        textColor: subtitleColor,
-                      ),
                     ],
                   ),
                 ),
@@ -500,7 +489,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         _isReanalyzing = true;
                       });
                       try {
-                        final jobId = await ApiService.startAnalysis(_repoUrl!);
+                        // Re-scan the same branch this report was made from.
+                        final app = _reportData?['applicability'];
+                        final branch = (app is Map && app['_scan'] is Map) ? app['_scan']['branch']?.toString() : null;
+                        final jobId = await ApiService.startAnalysis(_repoUrl!, branch: branch);
                         if (mounted) {
                           Navigator.pushNamed(
                             context,

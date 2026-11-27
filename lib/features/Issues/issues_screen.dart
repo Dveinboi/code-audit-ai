@@ -23,7 +23,6 @@ class _IssuesScreenState extends State<IssuesScreen> {
     'Architecture',
     'Performance',
     'Maintainability',
-    'Testing',
   ];
 
   @override

@@ -25,7 +25,6 @@ class PdfReportService {
       'Performance': reportData?['score_performance'],
       'Maintainability': reportData?['score_maintainability'],
       'Dependencies': reportData?['score_dependencies'],
-      'Testing': reportData?['score_testing'],
     };
     final scores = Map.fromEntries(allScores.entries.where((e) => e.value != null));
 
